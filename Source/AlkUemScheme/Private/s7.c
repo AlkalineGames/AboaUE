@@ -333,6 +333,9 @@
 #endif
 
 #ifdef _MSC_VER
+  #if _MSC_VER >= 1900 // [c4augustus] MSVC 2019 does not provide _Noreturn
+    #define _Noreturn
+  #endif
   #define noreturn _Noreturn /* deprecated in C23 */
 #else
   #define noreturn __attribute__((noreturn))
@@ -382,7 +385,9 @@
   #include <pthread.h>
 #endif
 
-#if __cplusplus
+// [c4augustus] MSVC 2019 won't compile #if on undefined macros
+//#if __cplusplus
+#ifdef __cplusplus
   #include <cmath>
 #else
   #include <math.h>
@@ -390,7 +395,9 @@
 
 /* there is also apparently __STDC_NO_COMPLEX__ */
 #if HAVE_COMPLEX_NUMBERS
-  #if __cplusplus
+  // [c4augustus] MSVC 2019 won't compile #if on undefined macros
+  //#if __cplusplus
+  #ifdef __cplusplus
     #include <complex>
   #else
     #include <complex.h>
@@ -433,7 +440,9 @@
 #define BOLD_TEXT "\033[1m"
 #define UNBOLD_TEXT "\033[22m"
 
-#if ((!__NetBSD__) && ((_MSC_VER) || (!defined(__STC__)) || (defined(__STDC_VERSION__) && (__STDC_VERSION__ < 199901L))))
+// [c4augustus] MSVC 2019 won't compile #if on undefined macros
+//#if ((!__NetBSD__) && ((_MSC_VER) || (!defined(__STC__)) || (defined(__STDC_VERSION__) && (__STDC_VERSION__ < 199901L))))
+#if ((!defined(__NetBSD__)) && ((_MSC_VER) || (!defined(__STC__)) || (defined(__STDC_VERSION__) && (__STDC_VERSION__ < 199901L))))
   #define __func__ __FUNCTION__
 #endif
 
@@ -3584,7 +3593,9 @@ static s7_pointer slot_expression(s7_pointer p)    \
 #define init_temp(p, Val)              p = Val
 #endif
 
-#if __cplusplus && HAVE_COMPLEX_NUMBERS
+// [c4augustus] MSVC 2019 won't compile #if on undefined macros
+//#if __cplusplus && HAVE_COMPLEX_NUMBERS
+#if defined(__cplusplus) && HAVE_COMPLEX_NUMBERS
   using namespace std;                /* the code has to work in C as well as C++, so we can't scatter std:: all over the place */
   typedef complex<s7_double> s7_complex;
   static s7_double Real(complex<s7_double> x) {return(real(x));} /* protect the C++ name */
@@ -4601,6 +4612,13 @@ static int64_t heap_location(s7_scheme *sc, s7_pointer p)
       return(hp->offset + (((intptr_t)p - hp->start) / sizeof(s7_cell)));
   return(((s7_big_pointer)p)->big_hloc);
 }
+
+#if defined(_MSC_VER) && (_MSC_VER >= 1900)
+  // [c4augustus] MSVC 2019 won't compile #if on undefined macros
+  #ifndef TRAP_SEGFAULT
+    #define TRAP_SEGFAULT 0
+  #endif
+#endif
 
 #if TRAP_SEGFAULT
 #include <signal.h>
@@ -12175,7 +12193,9 @@ static bool is_NaN(s7_double x) {return(x != x);}
   static bool is_inf(s7_double x) {return((x == x) && (is_NaN(x - x)));} /* there's no isinf in Solaris */
 #else
 #if (!MS_WINDOWS)
-  #if __cplusplus
+  // [c4augustus] MSVC 2019 won't compile #if on undefined macros
+  //#if __cplusplus
+  #ifdef __cplusplus
     #define is_inf(x) std::isinf(x)
   #else
     #define is_inf(x) isinf(x)
@@ -13009,7 +13029,9 @@ static s7_int big_integer_to_s7_int(s7_scheme *sc, mpz_t n)
 #endif
 /* can't use abs even in gcc -- it doesn't work with int64_ts! */
 
-#if (!__NetBSD__)
+// [c4augustus] MSVC 2019 won't compile #if on undefined macros
+//#if (!__NetBSD__)
+#ifndef __NetBSD__
   #define s7_fabsl(X) fabsl(X)
 #else
   static double s7_fabsl(long_double x) {return((signbit(x)) ? -x : x);}
@@ -13019,7 +13041,9 @@ static s7_int big_integer_to_s7_int(s7_scheme *sc, mpz_t n)
 static double s7_round(double number) {return((number < 0.0) ? ceil(number - 0.5) : floor(number + 0.5));}
 
 #if HAVE_COMPLEX_NUMBERS
-#if __cplusplus
+// [c4augustus] MSVC 2019 won't compile #if on undefined macros
+//#if __cplusplus
+#ifdef __cplusplus
   #define _Complex_I (complex<s7_double>(0.0, 1.0))
   #define creal(x) Real(x)
   #define cimag(x) Imag(x)
@@ -13047,7 +13071,9 @@ static double s7_round(double number) {return((number < 0.0) ? ceil(number - 0.5
 
 
 #if (!HAVE_COMPLEX_TRIG)
-#if (__cplusplus)
+// [c4augustus] MSVC 2019 won't compile #if on undefined macros
+//#if (__cplusplus)
+#ifdef (__cplusplus)
 
   static s7_complex ctan(s7_complex z)   {return(csin(z) / ccos(z));}
   static s7_complex ctanh(s7_complex z)  {return(csinh(z) / ccosh(z));}
@@ -16579,7 +16605,9 @@ static s7_pointer exp_p_d(s7_scheme *sc, s7_double x) {return(make_real(sc, exp(
 
 
 /* -------------------------------- log -------------------------------- */
-#if __cplusplus
+// [c4augustus] MSVC 2019 won't compile #if on undefined macros
+//#if __cplusplus
+#ifdef __cplusplus
 #define LOG_2 1.4426950408889634074
 #else
 #define LOG_2 1.4426950408889634073599246810018921L /* (/ (log 2.0)) */
@@ -16690,14 +16718,18 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 	      if (ix > 0)
 		{
 		  s7_double fx;
-#if (__ANDROID__) || (MS_WINDOWS) || (((__GNUC__) && ((__GNUC__ < 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ <= 4)))) && (!defined(__clang__)))
+// [c4augustus] MSVC 2019 won't compile #if on undefined macros
+//#if (__ANDROID__) || (MS_WINDOWS) || (((__GNUC__) && ((__GNUC__ < 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ <= 4)))) && (!defined(__clang__)))
+#if defined(__ANDROID__) || defined(MS_WINDOWS) || ((defined(__GNUC__) && ((__GNUC__ < 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ <= 4)))) && (!defined(__clang__)))
 		  /* just a guess -- log2 gets a warning in gcc 4.3.2, but not in 4.4.4 */
 		  fx = log((double)ix) * LOG_2;
 #else
 		  fx = log2((double)ix);
 #endif
 		  /* (s7_int)fx rounds (log 8 2) to 2 in FreeBSD! */
-#if (((__GNUC__) && ((__GNUC__ < 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ < 4)))) && (!defined(__clang__)))
+// [c4augustus] MSVC 2019 won't compile #if on undefined macros
+//#if (((__GNUC__) && ((__GNUC__ < 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ < 4)))) && (!defined(__clang__)))
+#if ((defined(__GNUC__) && ((__GNUC__ < 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ < 4)))) && (!defined(__clang__)))
 		  return(make_real(sc, fx));
 #else
 		  return(((ix & (ix - 1)) == 0) ? make_integer(sc, (s7_int)s7_round(fx)) : make_real(sc, fx));
@@ -69225,6 +69257,13 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	  cur_code = list_1(sc, sym);     /* the error will say "(sym)" which is not too misleading */
 	  pair_set_current_input_location(sc, cur_code);
 	}
+
+#if defined(_MSC_VER) && (_MSC_VER >= 1900)
+  // [c4augustus] MSVC 2019 won't compile #if on undefined macros
+  #ifndef DISABLE_AUTOLOAD
+    #define DISABLE_AUTOLOAD 0
+  #endif
+#endif
 
 #if (!DISABLE_AUTOLOAD)
       /* check sc->autoload_names */

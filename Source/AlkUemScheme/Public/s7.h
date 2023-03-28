@@ -867,6 +867,13 @@ void s7_slot_set_real_value(s7_scheme *sc, s7_pointer slot, s7_double value);
 
 /* -------------------------------------------------------------------------------- */
 
+#if defined(_MSC_VER) && (_MSC_VER >= 1900)
+  // [c4augustus] MSVC 2019 won't compile #if on undefined macros
+  #ifndef DISABLE_DEPRECATED
+    #define DISABLE_DEPRECATED 0
+  #endif
+#endif
+
 #if (!DISABLE_DEPRECATED)
 typedef s7_int s7_Int;
 typedef s7_double s7_Double;
