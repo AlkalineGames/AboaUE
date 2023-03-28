@@ -1445,14 +1445,14 @@ static s7_pointer set_elist_1(s7_scheme *sc, s7_pointer x1);
 
 static size_t local_fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
-  error_nr(cur_sc, cur_sc->io_error_symbol, 
+  error_nr(cur_sc, cur_sc->io_error_symbol,
 	   set_elist_1(cur_sc, wrap_string(cur_sc, "writing a file is not allowed in this version of s7", 51)));
 }
 
 static FILE *local_fopen(const char *pathname, const char *mode)
 {
   if ((mode[0] == 'w') || (mode[0] == 'a'))
-    error_nr(cur_sc, cur_sc->io_error_symbol, 
+    error_nr(cur_sc, cur_sc->io_error_symbol,
 	     set_elist_1(cur_sc, wrap_string(cur_sc, "opening a file is not allowed in this version of s7", 51)));
   return(old_fopen(pathname, mode));
 }
@@ -5340,7 +5340,7 @@ static s7_pointer check_ref18(s7_pointer p, const char *func, int32_t line)
     {
       if (global_value(p) != p)
 	{
-	  fprintf(stderr, "%s%s[%d]: keyword %s value is not itself (type: %s)%s\n", 
+	  fprintf(stderr, "%s%s[%d]: keyword %s value is not itself (type: %s)%s\n",
 		  BOLD_TEXT, func, line, display(p), s7_type_names[unchecked_type(global_value(p))], UNBOLD_TEXT);
 	  if (cur_sc->stop_at_error) abort();
 	}
@@ -5356,7 +5356,7 @@ static s7_pointer check_ref19(s7_pointer p, const char *func, int32_t line)
 {
   uint8_t typ = unchecked_type(p);
   check_nref(p, func, line);
-  if (t_ext_p[typ]) 
+  if (t_ext_p[typ])
     {
       fprintf(stderr, "%s%s[%d]: attempt to use (internal) %s cell%s\n", BOLD_TEXT, func, line, s7_type_names[typ], UNBOLD_TEXT);
       if (cur_sc->stop_at_error) abort();
@@ -20764,7 +20764,7 @@ static s7_pointer g_mul_xf(s7_scheme *sc, s7_pointer x, s7_double y, int32_t num
 {
   /* it's possible to return different argument NaNs depending on the expression or how it is wrapped:
    *   (* (bignum +nan.0) +nan.123) -> nan.123
-   *   (let () (define (func) (* (bignum +nan.0) +nan.123)) (func) (func)) -> nan.0 
+   *   (let () (define (func) (* (bignum +nan.0) +nan.123)) (func) (func)) -> nan.0
    * latter call is fx_c_aaa->fx_c_ac->g_mul_xf (if +nan.122 instead of +nan.0, we get +nan.122 so we always get one of the NaNs)
    */
   switch (type(x))
@@ -45711,7 +45711,7 @@ static bool is_dwind_thunk(s7_scheme *sc, s7_pointer x)
 {
   switch (type(x))
     {
-    case T_MACRO: case T_BACRO: case T_CLOSURE: 
+    case T_MACRO: case T_BACRO: case T_CLOSURE:
     case T_MACRO_STAR: case T_BACRO_STAR: case T_CLOSURE_STAR:
       return(is_null(closure_args(x)));    /* this case does not match is_aritable -- it could be loosened -- arity=0 below would need fixup */
     case T_C_FUNCTION:
@@ -51227,7 +51227,7 @@ s7_pointer s7_call_with_catch(s7_scheme *sc, s7_pointer tag, s7_pointer body, s7
     TRACK(sc);
     store_jump_info(sc);
     set_jump_info(sc, S7_CALL_SET_JUMP);
-    
+
     if (SHOW_EVAL_OPS) fprintf(stderr, "jump_loc: %d\n", jump_loc);
     if (jump_loc == NO_JUMP)
       {
@@ -83698,7 +83698,7 @@ static void op_define_with_setter(s7_scheme *sc)
 		  (!s7_is_equivalent(sc, old_value, sc->value)))    /* if value is unchanged, just ignore this (re)definition */
 		syntax_error_nr(sc, "define ~S, but it is immutable", 30, old_symbol);
 	    }
-	  else 
+	  else
 	    {
 	      slot_set_value_with_hook(slot, sc->value);
 	      symbol_increment_ctr(code);
@@ -88541,7 +88541,7 @@ static token_t read_sharp(s7_scheme *sc, s7_pointer pt)
     case '!':
       return(read_bang_comment(sc, pt));
 
-    case '|': 
+    case '|':
       return(read_block_comment(sc, pt));
     }
   sc->strbuf[0] = (unsigned char)c;
@@ -93233,7 +93233,7 @@ static s7_pointer s7_starlet_set_1(s7_scheme *sc, s7_pointer sym, s7_pointer val
 
     case SL_MEMORY_USAGE:
     case SL_MOST_NEGATIVE_FIXNUM:
-    case SL_MOST_POSITIVE_FIXNUM:  
+    case SL_MOST_POSITIVE_FIXNUM:
       sl_unsettable_error_nr(sc, sym);
 
     case SL_MUFFLE_WARNINGS:
@@ -93263,7 +93263,7 @@ static s7_pointer s7_starlet_set_1(s7_scheme *sc, s7_pointer sym, s7_pointer val
       if ((is_symbol(val)) || val == sc->F) {sc->profile_prefix = val; return(val);}
       s7_starlet_wrong_type_error_nr(sc, sym, val, wrap_string(sc, "a symbol or #f", 14));
 
-    case SL_ROOTLET_SIZE: 
+    case SL_ROOTLET_SIZE:
       sl_unsettable_error_nr(sc, sym);
 
     case SL_SAFETY:
