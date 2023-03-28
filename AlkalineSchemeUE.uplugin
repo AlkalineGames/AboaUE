@@ -1,0 +1,18 @@
+{
+  "FileVersion": 3,
+  "Version": 0.1,
+  "VersionName": "0.1-ue5011",
+  "FriendlyName": "AlkalineSchemeUE",
+  "Description": "Alkaline Scheme programming language for Unreal Engine",
+  "Category": "Programming",
+  "CreatedBy": "Alkaline Games LLC",
+  "CreatedByURL": "https://alkaline.games",
+  "DocsURL": "",
+  "MarketplaceURL": "",
+  "SupportURL": "",
+  "EngineVersion": "5.1.0",
+  "EnabledByDefault": true,
+  "CanContainContent": true,
+  "IsBetaVersion": true,
+  "Installed": true
+}
