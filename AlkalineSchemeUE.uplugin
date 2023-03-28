@@ -5,7 +5,7 @@
   "FriendlyName": "AlkalineSchemeUE",
   "Description": "Alkaline Scheme programming language for Unreal Engine",
   "Category": "Programming",
-  "CreatedBy": "Alkaline Games LLC",
+  "CreatedBy": "Alkaline Games, LLC",
   "CreatedByURL": "https://alkaline.games",
   "DocsURL": "",
   "MarketplaceURL": "",
@@ -14,5 +14,12 @@
   "EnabledByDefault": true,
   "CanContainContent": true,
   "IsBetaVersion": true,
-  "Installed": true
+  "Installed": true,
+  "Modules": [
+    {
+      "Name": "AlkUemScheme",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
 }
