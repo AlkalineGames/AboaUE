@@ -23,7 +23,9 @@ typedef double s7_double;
 #endif
 #endif
 
-#if WITH_GMP
+// [c4augustus] MSVC 2019 won't compile #if on undefined macros
+//#if WITH_GMP
+#if defined(WITH_GMP) && WITH_GMP
   /* in g++ these includes need to be outside the extern "C" business */
   #include <gmp.h>
   #include <mpfr.h>
@@ -888,7 +890,9 @@ typedef s7_double s7_Double;
 
 
 bool s7_is_bignum(s7_pointer obj);
-#if WITH_GMP
+// [c4augustus] MSVC 2019 won't compile #if on undefined macros
+//#if WITH_GMP
+#if defined(WITH_GMP) && WITH_GMP
   mpfr_t *s7_big_real(s7_pointer x);
   mpz_t  *s7_big_integer(s7_pointer x);
   mpq_t  *s7_big_ratio(s7_pointer x);
