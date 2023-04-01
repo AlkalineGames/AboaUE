@@ -9,12 +9,12 @@
 struct s7_scheme;
 
 struct AlkSchemeUeState {
-  const FString scmPath;
+  FString const scmPath;
 };
 
 struct AlkSchemeUeMutant {
-  const AlkSchemeUeState state;
-  const s7_scheme* s7session;
+  AlkSchemeUeState const state;
+  s7_scheme * const s7session;
       // ^ we cannot use std::shared_ptr<s7_scheme>
       //              or std::unique_ptr<s7_scheme>
       // because struct s7_scheme is incomplete in s7.h

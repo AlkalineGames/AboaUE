@@ -13,7 +13,7 @@ DEFINE_LOG_CATEGORY(LogAlkalineScheme);
 
 class DirectoryVisitor : public IPlatformFile::FDirectoryVisitor {
 public:
-  bool Visit(const TCHAR* name, bool isDirectory) override {
+  bool Visit(TCHAR const * const name, bool isDirectory) override {
     // TODO: @@@ UE_LOG DOES NOT TAKE A VARIABLE Format
     //auto label = isDirectory ? TEXT(" dir: %s") : TEXT("file: %s");
     if (isDirectory)
