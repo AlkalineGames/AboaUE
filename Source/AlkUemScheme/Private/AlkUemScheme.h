@@ -6,4 +6,16 @@
 //
 #pragma once
 
-#include "CoreMinimal.h"
+#include "alk-scheme-ue.h"
+
+#include <Modules/ModuleInterface.h>
+
+#include <memory>
+
+class FAlkUemScheme : public IModuleInterface {
+public:
+    virtual void StartupModule() override;
+    virtual void ShutdownModule() override;
+private:
+    std::unique_ptr<AlkSchemeUeMutant> alkSchemeUeMutant;
+};

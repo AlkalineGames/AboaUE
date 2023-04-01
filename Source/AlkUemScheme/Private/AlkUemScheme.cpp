@@ -5,6 +5,17 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 //
 #include "AlkUemScheme.h"
-#include "Modules/ModuleManager.h"
 
-IMPLEMENT_GAME_MODULE(FDefaultGameModuleImpl, AlkUemScheme);
+IMPLEMENT_MODULE(FAlkUemScheme, AlkUemScheme)
+
+void
+FAlkUemScheme::StartupModule() {
+  alkSchemeUeMutant = std::make_unique<AlkSchemeUeMutant>(
+    bootAlkSchemeUe());
+}
+
+void
+FAlkUemScheme::ShutdownModule() {
+  if (alkSchemeUeMutant->s7session)
+    s7_free(alkSchemeUeMutant->s7session);
+}
