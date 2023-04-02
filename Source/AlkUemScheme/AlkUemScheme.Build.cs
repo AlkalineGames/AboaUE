@@ -12,7 +12,9 @@ public class AlkUemScheme : ModuleRules {
       // ^ !!! fixes VC error: command line is too long to fit in debug record
     PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
     PrivateDependencyModuleNames.AddRange(new string[] {
-      "Core"
+      "Core",
+      "CoreUObject",
+      "Engine"
     });
   }
 }
