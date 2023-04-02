@@ -18,16 +18,12 @@
   ; TODO: ### IMPLEMENT
   (ue-log (format #f "called (open-scheme-editor ~S)" screen-pos)))
 
-(define (print-ue text)
-  ; TODO: ### IMPLEMENT
-  (ue-log (format #f "called (print-ue ~S)" text)))
-
 (hook-ue-input 'pointing 'press '(200 0 200 0)
   (lambda (screen-pos) (open-scheme-editor screen-pos)))
 
 (open-scheme-editor '(800 450))
 
-(print-ue "something")
+(ue-print-string "Alkaline Scheme is alive.")
 
 (ue-log "..END booting AlkalineSchemeUE")
 )
