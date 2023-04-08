@@ -290,8 +290,13 @@ ue_print_string(s7_scheme * s7, s7_pointer args) -> s7_pointer {
     [](TCHAR const * const text) {
       const auto * const world = PrimaryWorldOrError(
         name_ue_print_string, TCHAR_TO_ANSI(text));
-      if (world)
+      if (world) {
+        UE_LOG(LogAlkScheme, Display, TEXT("TRACE C++ %s world %s \"%s\""),
+          ANSI_TO_TCHAR(name_ue_print_string),
+          *(world->OriginalWorldName.ToString()),
+          text);
         UKismetSystemLibrary::PrintString(world, FString(text));
+      }
     });
 }
 
