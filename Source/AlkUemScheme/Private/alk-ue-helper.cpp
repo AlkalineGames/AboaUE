@@ -51,19 +51,21 @@ static auto PrimaryWorldOrError(
   char const * const info
 ) -> UWorld const * {
   UWorld const * mutPrimary = nullptr;
+#if 1
   auto const * const contexts = MutWorldContexts();
   if (contexts)
     for (auto mutIter = contexts->begin(); mutIter != contexts->end(); ++mutIter) {
       auto const mutWorld = (*mutIter).World();
       if (mutWorld) {
         auto mutName = mutWorld->OriginalWorldName.ToString();
-        if (!mutPrimary && mutName != "None") {
+        if (mutName != "None")
           mutPrimary = mutWorld;
-          mutName += " <- PRIMARY";
-        }
         UE_LOG(LogAlkUeHelper, Display, TEXT("TRACE C++ found World %s"), *mutName);
       }
     }
+#else
+  mutPrimary = CurrentPlayWorld();
+#endif
   if (!mutPrimary)
     UE_LOG(LogAlkUeHelper, Error,
       TEXT("No Engine/World found for %s of %s"),
