@@ -19,7 +19,7 @@
     {
       "Name": "AlkUemScheme",
       "Type": "Runtime",
-      "LoadingPhase": "Default"
+      "LoadingPhase": "PostEngineInit"
     }
   ]
 }
