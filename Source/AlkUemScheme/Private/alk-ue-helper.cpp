@@ -10,6 +10,8 @@
 #include "Components/InputComponent.h"
 #include "Kismet/GameplayStatics.h" // for GetPlayerPawn()
 
+#define ALK_TRACING 0
+
 DECLARE_LOG_CATEGORY_EXTERN(LogAlkUeHelper, Log, All);
 DEFINE_LOG_CATEGORY(LogAlkUeHelper);
 
@@ -60,7 +62,9 @@ static auto PrimaryWorldOrError(
         auto mutName = mutWorld->OriginalWorldName.ToString();
         if (mutName != "None")
           mutPrimary = mutWorld;
+#if ALK_TRACING
         UE_LOG(LogAlkUeHelper, Display, TEXT("TRACE C++ found World %s"), *mutName);
+#endif
       }
     }
 #else
