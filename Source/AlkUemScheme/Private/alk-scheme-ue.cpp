@@ -112,7 +112,16 @@ scheme_arg_symbol_index_or_error(
       s7, name, index, arg, "unmatched symbol")});
   else
     return std::distance(choices, result);
-  return 0;
+}
+
+static auto
+scheme_ue_vector(
+  s7_scheme * const s7,
+  FVector const & vec
+) -> s7_pointer {
+  double const v[] = {vec.X, vec.Y, vec.Z};
+  return s7_make_float_vector_wrapper(
+    s7, 3, const_cast<double *>(v), 1, NULL, false); // !!! CONST CAST
 }
 
 static auto
@@ -131,25 +140,41 @@ call_lambda_with_s7_string(
 
 static class UInputBinding : public UObject {
   DECLARE_CLASS_INTRINSIC(UInputBinding, UObject, CLASS_MatchedSerializers, TEXT("/Script/CoreUObject"))
-  s7_pointer mutHandler;
+  s7_scheme * s7          = nullptr;
+  s7_pointer  mutHandler  = nullptr;
 public:
   void BindEventHandler(
     UInputComponent & inputcomp,
     EInputEvent const event,
+    s7_scheme * const ins7,
     s7_pointer  const proc
   ) {
-    if (s7_is_procedure(proc)) {
+    if (ins7 && proc && s7_is_procedure(proc)) {
+      s7 = ins7;
       mutHandler = proc;
+      s7_gc_protect(s7, mutHandler);
       inputcomp.BindTouch(event, this, &UInputBinding::HandleEvent);
+#if ALK_TRACING
+      UE_LOG(LogAlkScheme, Display,
+        TEXT("TRACE C++ BindEventHandler %s s7 %d handler %d"),
+        event == EInputEvent::IE_Pressed ? TEXT("Pressed") : TEXT("not Pressed"),
+        s7, mutHandler);
+#endif
     }
   }
   void HandleEvent(
     ETouchIndex::Type const FingerIndex,
     FVector           const Location
   ) {
-    if (s7_is_procedure(mutHandler)) {
-      // TODO: @@@ IMPLEMENT
-      //call_s7_proc(procs.pressed,  FingerIndex, Location);
+    if (s7 && mutHandler) {
+#if ALK_TRACING
+    UE_LOG(LogAlkScheme, Display,
+      TEXT("TRACE C++ HandleEvent s7 %d handler %d"),
+      s7, mutHandler);
+#endif
+      s7_apply_function(s7, mutHandler,
+        s7_cons(s7, s7_make_integer(s7, FingerIndex),
+          s7_cons(s7, scheme_ue_vector(s7, Location), s7_nil(s7))));
     }
   }
 };
@@ -169,50 +194,37 @@ static std::array input_events {
 static auto const name_ue_bind_input_touch = "ue-bind-input-touch";
 static auto
 ue_bind_input_touch(s7_scheme * s7, s7_pointer args) -> s7_pointer {
-  auto const eventindex = scheme_arg_symbol_index_or_error(
+  auto const argevent = scheme_arg_symbol_index_or_error(
     s7, s7_car(args), 1, "event", input_symbols.data(), input_symbols.size());
-  if (eventindex.index() == 1)
-    return std::get<1>(eventindex).pointer;
-  auto const inputevent = input_events[std::get<0>(eventindex)];
+  if (argevent.index() == 1)
+    return std::get<1>(argevent).pointer;
+  auto const inputevent = input_events[std::get<0>(argevent)];
+  auto const arghandler = scheme_arg_procedure_or_error(
+    s7, s7_cadr(args), 2, "handler");
+  if (arghandler.index() == 1)
+    return std::get<1>(arghandler).pointer;
+  auto const handler = std::get<0>(arghandler).pointer;
   auto const inputcomp = MutFirstInputComponentOrError(
     name_ue_bind_input_touch, "");
   if (!inputcomp)
-    return s7_nil(s7); // TODO: @@@ RETURN ERROR INDICATOR
+    return s7_f(s7); // TODO: @@@ RETURN ERROR INDICATOR
   auto const binding = NewObject<UInputBinding>();
-  binding->BindEventHandler(*inputcomp, inputevent, {s7_cadr(args)});
+  binding->BindEventHandler(*inputcomp, inputevent, s7, handler);
   // TODO: FROM HERE @@@ binding LEAKS FROM HERE
-  return s7_nil(s7);
+  return s7_t(s7);
 }
-#if 0
-static class USchemeInvoker : public UObject {
-  DECLARE_CLASS_INTRINSIC(USchemeInvoker, UObject, CLASS_MatchedSerializers, TEXT("/Script/CoreUObject"))
-  s7_scheme * scheme   = nullptr;
-  s7_pointer procedure = nullptr;
-public:
-  void Bind(s7_scheme * const s7, s7_pointer const proc) {
-    if (s7_is_procedure(proc)) {
-      scheme = s7;
-      procedure = proc;
-    }
-  }
-  UFUNCTION()
-  void Invoke() const {
-    if (s7_is_procedure(procedure))
-      s7_apply_function(scheme, procedure, s7_nil(scheme));
-  }
-};
-IMPLEMENT_CLASS_NO_AUTO_REGISTRATION(USchemeInvoker)
-#endif
 
 static auto
 ue_apply_procedure_on_world(
-  s7_scheme * s7,
-  s7_pointer proc,
+  s7_scheme * const s7,
+  s7_pointer  const proc,
   UWorld & mutWorld
 ) -> void {
+#if ALK_TRACING
   UE_LOG(LogAlkScheme, Display,
     TEXT("TRACE C++ ue_apply_procedure_on_world \"%s\""),
     *mutWorld.OriginalWorldName.ToString());
+#endif
   s7_apply_function(s7, proc,
     s7_cons(s7, s7_make_c_pointer(s7, &mutWorld), s7_nil(s7)));
 }
@@ -220,7 +232,8 @@ ue_apply_procedure_on_world(
 static auto const name_ue_hook_on_world_added = "ue-hook-on-world-added";
 static auto
 ue_hook_on_world_added(s7_scheme * s7, s7_pointer args) -> s7_pointer {
-  auto const arg = scheme_arg_procedure_or_error(s7, s7_car(args), 1, "handler");
+  auto const arg = scheme_arg_procedure_or_error(
+    s7, s7_car(args), 1, "handler");
   if (arg.index() == 1)
     return std::get<1>(arg).pointer;
   auto const handler = std::get<0>(arg).pointer;
@@ -244,30 +257,34 @@ ue_hook_on_world_added(s7_scheme * s7, s7_pointer args) -> s7_pointer {
 static auto const name_ue_hook_on_world_begin_play = "ue-hook-on-world-begin-play";
 static auto
 ue_hook_on_world_begin_play(s7_scheme * s7, s7_pointer args) -> s7_pointer {
-  auto const arg1 = scheme_arg_c_pointer_or_error(s7, s7_car(args), 1, "world");
-  if (arg1.index() == 1)
-    return std::get<1>(arg1).pointer;
-  auto const arg1pointer = std::get<0>(arg1).pointer;
-  auto const cpointer = s7_c_pointer(arg1pointer);
-  auto const arg2 = scheme_arg_procedure_or_error(s7, s7_cadr(args), 2, "handler");
-  if (arg2.index() == 1)
-    return std::get<1>(arg2).pointer;
-  auto const handler = std::get<0>(arg2).pointer;
-  auto const mutWorld = reinterpret_cast<UWorld*>(cpointer); // TODO: @@@ YIKES!
+  auto const argworld = scheme_arg_c_pointer_or_error(
+    s7, s7_car(args), 1, "world");
+  if (argworld.index() == 1)
+    return std::get<1>(argworld).pointer;
+  auto const worldpointer = std::get<0>(argworld).pointer;
+  auto const arghandler = scheme_arg_procedure_or_error(
+    s7, s7_cadr(args), 2, "handler");
+  if (arghandler.index() == 1)
+    return std::get<1>(arghandler).pointer;
+  auto const handler = std::get<0>(arghandler).pointer;
+  auto const mutWorld = reinterpret_cast<UWorld*>( // TODO: ### YIKES!
+    s7_c_pointer(worldpointer));
   if (mutWorld) {
-    //auto const invoker = NewObject<USchemeInvoker>();
-    //invoker->Bind(s7, handler);
-    // TODO: @@@ DEAL WITH LIFETIME OF handler
-    auto const lambda = [s7, arg1pointer, handler]() {
+    s7_gc_protect(s7, handler);
+    auto const lambda = [s7, mutWorld, handler]() {
+#if ALK_TRACING
       UE_LOG(LogAlkScheme, Display, TEXT("TRACE C++ OnWorldBeginPlay"));
-      s7_apply_function(s7, handler, s7_cons(s7, arg1pointer, s7_nil(s7)));
+#endif
+      s7_apply_function(s7, handler,
+        s7_cons(s7, s7_make_c_pointer(s7, mutWorld), s7_nil(s7)));
     };
     if (mutWorld->HasBegunPlay())
       lambda();
     else
       mutWorld->OnWorldBeginPlay.AddLambda(lambda);
-    //world->OnWorldBeginPlay.AddUObject(invoker, &USchemeInvoker::Invoke);
+#if ALK_TRACING
     UE_LOG(LogAlkScheme, Display, TEXT("TRACE C++ ue_hook_on_world_begin_play"));
+#endif
     return s7_t(s7);
   }
   else
@@ -291,10 +308,12 @@ ue_print_string(s7_scheme * s7, s7_pointer args) -> s7_pointer {
       const auto * const world = PrimaryWorldOrError(
         name_ue_print_string, TCHAR_TO_ANSI(text));
       if (world) {
+#if ALK_TRACING
         UE_LOG(LogAlkScheme, Display, TEXT("TRACE C++ %s world %s \"%s\""),
           ANSI_TO_TCHAR(name_ue_print_string),
           *(world->OriginalWorldName.ToString()),
           text);
+#endif
         UKismetSystemLibrary::PrintString(world, FString(text));
       }
     });
