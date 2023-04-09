@@ -44,26 +44,34 @@ static auto MutPrimaryWorldOrError(
   return const_cast<UWorld*>(PrimaryWorldOrError(purpose, info));
 }
 
-static auto FirstPlayerPawnOrError(
+static auto PlayerPawnOrError(
+  UWorld       const & world,
+  int          const index,
   char const * const purpose,
   char const * const info
 ) -> APawn const *;
 
-static auto MutFirstPlayerPawnOrError(
+static auto MutPlayerPawnOrError(
+  UWorld       const & world,
+  int          const index,
   char const * const purpose,
   char const * const info
 ) -> APawn * {
-  return const_cast<APawn*>(FirstPlayerPawnOrError(purpose, info));
+  return const_cast<APawn*>(PlayerPawnOrError(world, index, purpose, info));
 }
 
-static auto FirstInputComponentOrError(
+static auto PlayerInputComponentOrError(
+  UWorld       const & world,
+  int          const index,
   char const * const purpose,
   char const * const info
 ) -> UInputComponent const *;
 
-static auto MutFirstInputComponentOrError(
+static auto MutPlayerInputComponentOrError(
+  UWorld       const & world,
+  int          const index,
   char const * const purpose,
   char const * const info
 ) -> UInputComponent * {
-  return const_cast<UInputComponent*>(FirstInputComponentOrError(purpose, info));
+  return const_cast<UInputComponent*>(PlayerInputComponentOrError(world, index, purpose, info));
 }

@@ -6,10 +6,10 @@
 
 #include "alk-ue-helper.h"
 
-#include "Engine/Engine.h"
+//#include "Engine/Engine.h" // TODO: @@@ UNUSED
 #include "Components/InputComponent.h"
 #include "Kismet/GameplayStatics.h" // for GetPlayerPawn()
-#include "UnrealEdGlobals.h"
+//#include "UnrealEdGlobals.h" // TODO: @@@ UNUSED
 
 #include <set>
 
@@ -46,7 +46,7 @@ static auto FindAllMutWorlds(
     for (auto mutIter = contexts->begin(); mutIter != contexts->end(); ++mutIter) {
       auto const world = (*mutIter).World();
       if (world) {
-#if 1 //ALK_TRACING
+#if ALK_TRACING
         UE_LOG(LogAlkUeHelper, Display,
           TEXT("TRACE C++ found world context %s"),
           *(world->OriginalWorldName.ToString()));
@@ -54,6 +54,7 @@ static auto FindAllMutWorlds(
         worlds.insert(world);
       }
     }
+#if 0 // TODO: @@@ UNUSED
   if (GUnrealEd) { // TODO: @@@ ARE THERE REALLY MORE WORLDS THAN ABOVE?
     auto const clients = GUnrealEd->GetAllViewportClients();
     for (auto mutIter = clients.begin(); mutIter != clients.end(); ++mutIter) {
@@ -61,7 +62,7 @@ static auto FindAllMutWorlds(
       if (client) {
         auto const world = client->GetWorld();
         if (world) {
-#if 1 //ALK_TRACING
+#if ALK_TRACING
           UE_LOG(LogAlkUeHelper, Display,
             TEXT("TRACE C++ found viewport client world %s"),
             *(world->OriginalWorldName.ToString()));
@@ -71,6 +72,7 @@ static auto FindAllMutWorlds(
       }
     }
   }
+#endif
   return worlds;
 }
 
@@ -81,7 +83,7 @@ static auto ApplyLambdaOnAllWorlds(
   std::for_each(worlds.begin(), worlds.end(),
     [&lambda](UWorld * const & world) {
       if (world) {
-#if 1 //ALK_TRACING
+#if ALK_TRACING
         UE_LOG(LogAlkUeHelper, Display,
           TEXT("TRACE C++ applying lambda to world %s"),
           *(world->OriginalWorldName.ToString()));
@@ -91,7 +93,6 @@ static auto ApplyLambdaOnAllWorlds(
     });
 }
 
-// TODO: @@@ DEPRECATE IF NOT USED
 static auto PrimaryWorldOrError(
   char const * const purpose,
   char const * const info
@@ -122,13 +123,13 @@ static auto PrimaryWorldOrError(
   return mutPrimary;
 }
 
-static auto FirstPlayerPawnOrError(
+static auto PlayerPawnOrError(
+  UWorld       const & world,
+  int          const index,
   char const * const purpose,
   char const * const info
 ) -> APawn const * {
-  auto const * const world = PrimaryWorldOrError(purpose, info);
-  if (!world) { return nullptr; }
-  auto const * const pawn = UGameplayStatics::GetPlayerPawn(world, 0);
+  auto const * const pawn = UGameplayStatics::GetPlayerPawn(&world, index);
   if (!pawn)
     UE_LOG(LogAlkUeHelper, Error,
       TEXT("No PlayerPawn found for %s of %s"),
@@ -137,11 +138,13 @@ static auto FirstPlayerPawnOrError(
   return pawn;
 }
 
-static auto FirstInputComponentOrError(
+static auto PlayerInputComponentOrError(
+  UWorld       const & world,
+  int          const index,
   char const * const purpose,
   char const * const info
 ) -> UInputComponent const * {
-  auto const * const pawn = FirstPlayerPawnOrError(purpose, info);
+  auto const * const pawn = PlayerPawnOrError(world, index, purpose, info);
   if (!pawn) { return nullptr; }
   auto const * const input = pawn->InputComponent.Get();
   if (!input)
