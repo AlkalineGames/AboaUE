@@ -119,6 +119,26 @@ scheme_arg_symbol_index_or_error(
 }
 
 static auto
+scheme_arg_world(
+  s7_scheme *  const s7,
+  s7_pointer   const arg,
+  int          const index,
+  char const * const name
+) -> std::variant<UWorld const *,ErrorPointer> {
+  auto const argworld = scheme_arg_c_pointer_or_error(s7, arg, index, name);
+  if (argworld.index() == 1)
+    return std::get<1>(argworld);
+  auto const worlds7pointer = std::get<0>(argworld).pointer;
+  auto const world = const_cast<UWorld const *>(
+    reinterpret_cast<UWorld*>(s7_c_pointer(worlds7pointer))); // TODO: ### YIKES!
+  if (!world)
+    return ErrorPointer({s7_wrong_type_arg_error(
+      s7, name, index, arg, "no world")});
+  else
+    return world;
+}
+
+static auto
 scheme_ue_vector(
   s7_scheme * const s7,
   FVector const & vec
@@ -198,26 +218,34 @@ static std::array input_events {
 static auto const name_ue_bind_input_touch = "ue-bind-input-touch";
 static auto
 ue_bind_input_touch(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argworld = scheme_arg_world(
+    s7, s7_car(args), 1, "world");
+  if (argworld.index() == 1)
+    return std::get<1>(argworld).pointer;
+  auto const world = std::get<0>(argworld);
+  if (!world)
+    return s7_f(s7); // !!! scheme_arg_world already checks for null
   auto const argevent = scheme_arg_symbol_index_or_error(
-    s7, s7_car(args), 1, "event", input_symbols.data(), input_symbols.size());
+    s7, s7_cadr(args), 2, "event", input_symbols.data(), input_symbols.size());
   if (argevent.index() == 1)
     return std::get<1>(argevent).pointer;
   auto const inputevent = input_events[std::get<0>(argevent)];
   auto const arghandler = scheme_arg_procedure_or_error(
-    s7, s7_cadr(args), 2, "handler");
+    s7, s7_caddr(args), 3, "handler");
   if (arghandler.index() == 1)
     return std::get<1>(arghandler).pointer;
   auto const handler = std::get<0>(arghandler).pointer;
-  auto const inputcomp = MutFirstInputComponentOrError(
-    name_ue_bind_input_touch, "");
+  auto const inputcomp = MutPlayerInputComponentOrError(
+    *world, 0, name_ue_bind_input_touch, "");
   if (!inputcomp)
-    return s7_f(s7); // TODO: @@@ RETURN ERROR INDICATOR
+    return s7_f(s7); // TODO: @@@ REPORT ERROR TO SCHEME
   auto const binding = NewObject<UInputBinding>();
   binding->BindEventHandler(*inputcomp, inputevent, s7, handler);
-  // TODO: FROM HERE @@@ binding LEAKS FROM HERE
+  // TODO: ### binding LEAKS FROM HERE
   return s7_t(s7);
 }
 
+#if 0
 static auto
 ue_apply_procedure_on_world(
   s7_scheme * const s7,
@@ -263,42 +291,39 @@ ue_hook_on_world_added(s7_scheme * s7, s7_pointer args) -> s7_pointer {
   lambda();
   return s7_t(s7);
 }
+#endif
 
 static auto const name_ue_hook_on_world_begin_play = "ue-hook-on-world-begin-play";
 static auto
 ue_hook_on_world_begin_play(s7_scheme * s7, s7_pointer args) -> s7_pointer {
-  auto const argworld = scheme_arg_c_pointer_or_error(
-    s7, s7_car(args), 1, "world");
-  if (argworld.index() == 1)
-    return std::get<1>(argworld).pointer;
-  auto const worldpointer = std::get<0>(argworld).pointer;
   auto const arghandler = scheme_arg_procedure_or_error(
-    s7, s7_cadr(args), 2, "handler");
+    s7, s7_car(args), 1, "handler");
   if (arghandler.index() == 1)
     return std::get<1>(arghandler).pointer;
   auto const handler = std::get<0>(arghandler).pointer;
-  auto const mutWorld = reinterpret_cast<UWorld*>( // TODO: ### YIKES!
-    s7_c_pointer(worldpointer));
-  if (mutWorld) {
-    s7_gc_protect(s7, handler); // TODO: @@@ PROTECTED INDEFINITELY
-    auto const lambda = [s7, mutWorld, handler]() {
+  s7_gc_protect(s7, handler); // TODO: @@@ PROTECTED INDEFINITELY
 #if ALK_TRACING
-      UE_LOG(LogAlkScheme, Display, TEXT("TRACE C++ OnWorldBeginPlay"));
+  UE_LOG(LogAlkScheme, Display, TEXT("TRACE C++ %s"),
+    ANSI_TO_TCHAR(name_ue_hook_on_world_begin_play));
 #endif
+  FWorldDelegates::OnWorldInitializedActors.AddLambda(
+    [s7, handler](const UWorld::FActorsInitializedParams & params) {
+#if ALK_TRACING
+      UE_LOG(LogAlkScheme, Display, TEXT("TRACE C++ on world actors initialized"));
+#endif
+      auto const world = params.World;
+      if (world)
+        world->OnWorldBeginPlay.AddLambda([s7, handler, world]() {
+          s7_apply_function(s7, handler,
+            s7_cons(s7, s7_make_c_pointer(s7, world), s7_nil(s7)));
+        });
+    });
+  ApplyLambdaOnAllWorlds([s7, handler](UWorld & mutWorld) {
+    if (mutWorld.HasBegunPlay())
       s7_apply_function(s7, handler,
-        s7_cons(s7, s7_make_c_pointer(s7, mutWorld), s7_nil(s7)));
-    };
-    if (mutWorld->HasBegunPlay())
-      lambda();
-    else
-      mutWorld->OnWorldBeginPlay.AddLambda(lambda);
-#if ALK_TRACING
-    UE_LOG(LogAlkScheme, Display, TEXT("TRACE C++ ue_hook_on_world_begin_play"));
-#endif
-    return s7_t(s7);
-  }
-  else
-    return s7_f(s7);
+        s7_cons(s7, s7_make_c_pointer(s7, &mutWorld), s7_nil(s7)));
+  });
+  return s7_t(s7);
 }
 
 static auto const name_ue_log = "ue-log";
@@ -313,20 +338,24 @@ ue_log(s7_scheme * s7, s7_pointer args) -> s7_pointer {
 static auto const name_ue_print_string = "ue-print-string";
 static auto
 ue_print_string(s7_scheme * s7, s7_pointer args) -> s7_pointer {
-  return call_lambda_with_s7_string(s7, args, name_ue_print_string,
-    [](TCHAR const * const text) {
-      const auto * const world = PrimaryWorldOrError(
-        name_ue_print_string, TCHAR_TO_ANSI(text));
-      if (world) {
+  auto const argworld = scheme_arg_world(
+    s7, s7_car(args), 1, "world");
+  if (argworld.index() == 1)
+    return std::get<1>(argworld).pointer;
+  auto const world = std::get<0>(argworld);
+  auto const argstring = scheme_arg_string_or_error(
+    s7, s7_cadr(args), 2, "string");
+  if (argstring.index() == 1)
+    return std::get<1>(argstring).pointer;
+  auto string = FString(ANSI_TO_TCHAR(std::get<0>(argstring)));
 #if ALK_TRACING
-        UE_LOG(LogAlkScheme, Display, TEXT("TRACE C++ %s world %s \"%s\""),
-          ANSI_TO_TCHAR(name_ue_print_string),
-          *(world->OriginalWorldName.ToString()),
-          text);
+  UE_LOG(LogAlkScheme, Display, TEXT("TRACE C++ %s world %s \"%s\""),
+    ANSI_TO_TCHAR(name_ue_print_string),
+    *(world->OriginalWorldName.ToString()),
+    *string);
 #endif
-        UKismetSystemLibrary::PrintString(world, FString(text));
-      }
-    });
+  UKismetSystemLibrary::PrintString(world, string);
+  return s7_t(s7);
 }
 
 auto function_help_string(
@@ -343,20 +372,17 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
     return {};
   }
   s7_define_function(s7session,
-    name_ue_bind_input_touch, ue_bind_input_touch, 2, 0, false,
-    function_help_string(name_ue_bind_input_touch, " event handler").c_str());
+    name_ue_bind_input_touch, ue_bind_input_touch, 3, 0, false,
+    function_help_string(name_ue_bind_input_touch, " world event handler").c_str());
   s7_define_function(s7session,
-    name_ue_hook_on_world_added, ue_hook_on_world_added, 1, 0, false,
-    function_help_string(name_ue_hook_on_world_added, " handler").c_str());
-  s7_define_function(s7session,
-    name_ue_hook_on_world_begin_play, ue_hook_on_world_begin_play, 2, 0, false,
-    function_help_string(name_ue_hook_on_world_begin_play, " world handler").c_str());
+    name_ue_hook_on_world_begin_play, ue_hook_on_world_begin_play, 1, 0, false,
+    function_help_string(name_ue_hook_on_world_begin_play, " handler").c_str());
   s7_define_function(s7session,
     name_ue_log, ue_log, 1, 0, false,
     function_help_string(name_ue_log, " string").c_str());
   s7_define_function(s7session,
-    name_ue_print_string, ue_print_string, 1, 0, false,
-    function_help_string(name_ue_print_string, " string)").c_str());
+    name_ue_print_string, ue_print_string, 2, 0, false,
+    function_help_string(name_ue_print_string, " world string)").c_str());
 
   FString const scmPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(
       FPaths::ProjectPluginsDir(),

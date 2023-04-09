@@ -14,8 +14,7 @@ public class AlkUemScheme : ModuleRules {
     PrivateDependencyModuleNames.AddRange(new string[] {
       "Core",
       "CoreUObject",
-      "Engine",
-      "UnrealEd"
+      "Engine"
     });
   }
 }
