@@ -10,8 +10,12 @@
 
 #include "s7.h"
 
+#include "Components/InputComponent.h"
+#include "Editor/UnrealEdEngine.h"
 #include "HAL/PlatformFileManager.h"
 #include "Kismet/KismetSystemLibrary.h" // for PrintString(...)
+#include "Misc/FileHelper.h"
+#include "UnrealEdGlobals.h"
 
 #include <array>
 #include <string_view>
@@ -152,7 +156,7 @@ public:
     if (ins7 && proc && s7_is_procedure(proc)) {
       s7 = ins7;
       mutHandler = proc;
-      s7_gc_protect(s7, mutHandler);
+      s7_gc_protect(s7, mutHandler); // TODO: @@@ PROTECTED INDEFINITELY
       inputcomp.BindTouch(event, this, &UInputBinding::HandleEvent);
 #if ALK_TRACING
       UE_LOG(LogAlkScheme, Display,
@@ -232,26 +236,32 @@ ue_apply_procedure_on_world(
 static auto const name_ue_hook_on_world_added = "ue-hook-on-world-added";
 static auto
 ue_hook_on_world_added(s7_scheme * s7, s7_pointer args) -> s7_pointer {
-  auto const arg = scheme_arg_procedure_or_error(
+  auto const arghandler = scheme_arg_procedure_or_error(
     s7, s7_car(args), 1, "handler");
-  if (arg.index() == 1)
-    return std::get<1>(arg).pointer;
-  auto const handler = std::get<0>(arg).pointer;
+  if (arghandler.index() == 1)
+    return std::get<1>(arghandler).pointer;
+  auto const handler = std::get<0>(arghandler).pointer;
   auto * mutEngine = MutEngineOrError(name_ue_hook_on_world_added, "");
-  if (mutEngine) {
-    mutEngine->OnWorldAdded().AddLambda(
-      [s7, handler](UWorld * mutWorld) {
-        if (mutWorld)
-          ue_apply_procedure_on_world(s7, handler, *mutWorld);
-      });
-    ApplyLambdaOnWorlds(
+  if (!mutEngine)
+    return s7_f(s7); // TODO: @@@ REPORT ERROR TO SCHEME
+  s7_gc_protect(s7, handler); // TODO: @@@ PROTECTED INDEFINITELY
+#if 0 // !!! OnWorldAdded() never gets called except in one case which is useless
+  mutEngine->OnWorldAdded().AddLambda(
+    [s7, handler](UWorld * mutWorld) {
+      if (mutWorld)
+        ue_apply_procedure_on_world(s7, handler, *mutWorld);
+    });
+#endif
+  auto const lambda = [s7, handler]() {
+    ApplyLambdaOnAllWorlds(
       [s7, handler](UWorld & mutWorld) {
         ue_apply_procedure_on_world(s7, handler, mutWorld);
       });
-    return s7_t(s7);
-  }
-  else
-    return s7_f(s7);
+  };
+  if (GUnrealEd) // !!! only way to be notified of new worlds
+    GUnrealEd->OnViewportClientListChanged().AddLambda(lambda);
+  lambda();
+  return s7_t(s7);
 }
 
 static auto const name_ue_hook_on_world_begin_play = "ue-hook-on-world-begin-play";
@@ -270,7 +280,7 @@ ue_hook_on_world_begin_play(s7_scheme * s7, s7_pointer args) -> s7_pointer {
   auto const mutWorld = reinterpret_cast<UWorld*>( // TODO: ### YIKES!
     s7_c_pointer(worldpointer));
   if (mutWorld) {
-    s7_gc_protect(s7, handler);
+    s7_gc_protect(s7, handler); // TODO: @@@ PROTECTED INDEFINITELY
     auto const lambda = [s7, mutWorld, handler]() {
 #if ALK_TRACING
       UE_LOG(LogAlkScheme, Display, TEXT("TRACE C++ OnWorldBeginPlay"));

@@ -28,7 +28,7 @@ static auto CurrentPlayWorld()
 static auto MutWorldContexts()
 -> TIndirectArray<FWorldContext> const *;
 
-static auto ApplyLambdaOnWorlds(
+static auto ApplyLambdaOnAllWorlds(
   std::function<void (UWorld &)> const &
 ) -> void;
 

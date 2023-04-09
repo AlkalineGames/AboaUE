@@ -9,6 +9,9 @@
 #include "Engine/Engine.h"
 #include "Components/InputComponent.h"
 #include "Kismet/GameplayStatics.h" // for GetPlayerPawn()
+#include "UnrealEdGlobals.h"
+
+#include <set>
 
 #define ALK_TRACING 0
 
@@ -35,16 +38,57 @@ static auto MutWorldContexts() -> TIndirectArray<FWorldContext> const * {
   return !GEngine ? nullptr : &GEngine->GetWorldContexts();
 }
 
-static auto ApplyLambdaOnWorlds(
-  std::function<void (UWorld &)> const & lambda
-) -> void {
+static auto FindAllMutWorlds(
+) -> std::set<UWorld *> {
+  std::set<UWorld *> worlds;
   auto const * const contexts = MutWorldContexts();
   if (contexts)
     for (auto mutIter = contexts->begin(); mutIter != contexts->end(); ++mutIter) {
-      auto const mutWorld = (*mutIter).World();
-      if (mutWorld)
-        lambda(*mutWorld);
+      auto const world = (*mutIter).World();
+      if (world) {
+#if 1 //ALK_TRACING
+        UE_LOG(LogAlkUeHelper, Display,
+          TEXT("TRACE C++ found world context %s"),
+          *(world->OriginalWorldName.ToString()));
+#endif
+        worlds.insert(world);
+      }
     }
+  if (GUnrealEd) { // TODO: @@@ ARE THERE REALLY MORE WORLDS THAN ABOVE?
+    auto const clients = GUnrealEd->GetAllViewportClients();
+    for (auto mutIter = clients.begin(); mutIter != clients.end(); ++mutIter) {
+      auto const client = *mutIter;
+      if (client) {
+        auto const world = client->GetWorld();
+        if (world) {
+#if 1 //ALK_TRACING
+          UE_LOG(LogAlkUeHelper, Display,
+            TEXT("TRACE C++ found viewport client world %s"),
+            *(world->OriginalWorldName.ToString()));
+#endif
+          worlds.insert(world);
+        }
+      }
+    }
+  }
+  return worlds;
+}
+
+static auto ApplyLambdaOnAllWorlds(
+  std::function<void (UWorld &)> const & lambda
+) -> void {
+  auto worlds = FindAllMutWorlds();
+  std::for_each(worlds.begin(), worlds.end(),
+    [&lambda](UWorld * const & world) {
+      if (world) {
+#if 1 //ALK_TRACING
+        UE_LOG(LogAlkUeHelper, Display,
+          TEXT("TRACE C++ applying lambda to world %s"),
+          *(world->OriginalWorldName.ToString()));
+#endif
+        lambda(*world);
+      }
+    });
 }
 
 // TODO: @@@ DEPRECATE IF NOT USED
