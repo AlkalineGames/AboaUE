@@ -9,18 +9,18 @@
 ( ;; TODO: @@@ NEEDS TO BE A LIST OF EXPRESSIONS FOR NOW
 (ue-log "TRACE SCHEME >>> BEGIN booting AlkalineSchemeUE")
 
-(define (hook-input device action durations func)
+(define (hook-player-input world device action durations func)
   ;; TODO: @@@ ASSUMING 'pointing DEVICE
   ;;(ue-log "TRACE SCHEME >>> BEGIN hook-input")
   (define (trace-event event finger location)
     (let ((info (format #f "TRACE SCHEME >>> ~S finger ~S at ~S" event finger location)))
-      (ue-print-string info)))
+      (ue-print-string world info)))
       ;;(ue-log info)))
-  (ue-bind-input-touch 'pressed
+  (ue-bind-input-touch world 'pressed
     (lambda (finger location) (trace-event "pressed" finger location)))
-  (ue-bind-input-touch 'released
+  (ue-bind-input-touch world 'released
     (lambda (finger location) (trace-event "released" finger location)))
-  (ue-bind-input-touch 'repeated
+  (ue-bind-input-touch world 'repeated
     (lambda (finger location) (trace-event "repeated" finger location))))
   ;;(ue-log "TRACE SCHEME <<< END hook-input"))
 
@@ -28,20 +28,12 @@
   ;; TODO: ### IMPLEMENT
   (ue-log (format #f "TRACE SCHEME (open-scheme-editor ~S)" screen-pos)))
 
-(ue-hook-on-world-added
+(ue-hook-on-world-begin-play
   (lambda (world)
-    ;;(ue-log "TRACE SCHEME lambda from (ue-hook-on-world-added))")
-    (ue-hook-on-world-begin-play
-      world
-      (lambda (world)
-        ;;(ue-log "TRACE SCHEME lambda from (ue-hook-on-world-begin-play)")
-        (ue-print-string "Alkaline Scheme is alive")
-        (hook-input 'pointing 'press '(200 0 200 0)
-          (lambda (screen-pos) (open-scheme-editor screen-pos)))))))
-
-;; TODO: ### NEED TO HOOK ON EXISTING WORLDS AS WELL
-
-;;(ue-print-string "Alkaline Scheme is alive")
+    ;;(ue-log "TRACE SCHEME lambda from (ue-hook-on-world-initialized-actors)")
+    (ue-print-string world "Alkaline Scheme is alive")
+    (hook-player-input world 'pointing 'press '(200 0 200 0)
+      (lambda (screen-pos) (open-scheme-editor screen-pos)))))
 
 (ue-log "TRACE SCHEME <<< END booting AlkalineSchemeUE")
 )
