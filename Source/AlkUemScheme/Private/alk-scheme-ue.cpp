@@ -11,11 +11,9 @@
 #include "s7.h"
 
 #include "Components/InputComponent.h"
-#include "Editor/UnrealEdEngine.h"
 #include "HAL/PlatformFileManager.h"
 #include "Kismet/KismetSystemLibrary.h" // for PrintString(...)
 #include "Misc/FileHelper.h"
-#include "UnrealEdGlobals.h"
 
 #include <array>
 #include <string_view>
