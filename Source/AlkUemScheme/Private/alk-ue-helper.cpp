@@ -104,8 +104,10 @@ static auto PrimaryWorldOrError(
     for (auto mutIter = contexts->begin(); mutIter != contexts->end(); ++mutIter) {
       auto const mutWorld = (*mutIter).World();
       if (mutWorld) {
+#if WITH_EDITOR // !!! because the editor has additional worlds
         auto mutName = mutWorld->OriginalWorldName.ToString();
         if (mutName != "None")
+#endif
           mutPrimary = mutWorld;
 #if ALK_TRACING
         UE_LOG(LogAlkUeHelper, Display, TEXT("TRACE C++ found World %s"), *mutName);
