@@ -2,7 +2,7 @@
 #define S7_H
 
 #define S7_VERSION "10.6"
-#define S7_DATE "29-Mar-2023"
+#define S7_DATE "21-June-2023"
 #define S7_MAJOR_VERSION 10
 #define S7_MINOR_VERSION 6
 
@@ -23,9 +23,7 @@ typedef double s7_double;
 #endif
 #endif
 
-// [c4augustus] MSVC 2019 won't compile #if on undefined macros
-//#if WITH_GMP
-#if defined(WITH_GMP) && WITH_GMP
+#if WITH_GMP
   /* in g++ these includes need to be outside the extern "C" business */
   #include <gmp.h>
   #include <mpfr.h>
@@ -869,13 +867,6 @@ void s7_slot_set_real_value(s7_scheme *sc, s7_pointer slot, s7_double value);
 
 /* -------------------------------------------------------------------------------- */
 
-#if defined(_MSC_VER) && (_MSC_VER >= 1900)
-  // [c4augustus] MSVC 2019 won't compile #if on undefined macros
-  #ifndef DISABLE_DEPRECATED
-    #define DISABLE_DEPRECATED 0
-  #endif
-#endif
-
 #if (!DISABLE_DEPRECATED)
 typedef s7_int s7_Int;
 typedef s7_double s7_Double;
@@ -890,9 +881,7 @@ typedef s7_double s7_Double;
 
 
 bool s7_is_bignum(s7_pointer obj);
-// [c4augustus] MSVC 2019 won't compile #if on undefined macros
-//#if WITH_GMP
-#if defined(WITH_GMP) && WITH_GMP
+#if WITH_GMP
   mpfr_t *s7_big_real(s7_pointer x);
   mpz_t  *s7_big_integer(s7_pointer x);
   mpq_t  *s7_big_ratio(s7_pointer x);
