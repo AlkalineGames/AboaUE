@@ -23,6 +23,13 @@ typedef double s7_double;
 #endif
 #endif
 
+// [c4augustus] PATCHED
+// (FYI, declaring #define WITH_GMP 0
+//  ... in source before its #include "s7.h"
+//  ... DOES prevent a "not defined" warning/error)
+#ifndef WITH_GMP
+  #define WITH_GMP 0
+#endif
 #if WITH_GMP
   /* in g++ these includes need to be outside the extern "C" business */
   #include <gmp.h>
@@ -867,6 +874,13 @@ void s7_slot_set_real_value(s7_scheme *sc, s7_pointer slot, s7_double value);
 
 /* -------------------------------------------------------------------------------- */
 
+// [c4augustus] PATCHED
+// (FYI, declaring #define DISABLE_DEPRECATED 0
+//  ... in source before its #include "s7.h"
+//  ... STILL produces a "not defined" warning/error)
+#ifndef DISABLE_DEPRECATED
+  #define DISABLE_DEPRECATED 0
+#endif
 #if (!DISABLE_DEPRECATED)
 typedef s7_int s7_Int;
 typedef s7_double s7_Double;

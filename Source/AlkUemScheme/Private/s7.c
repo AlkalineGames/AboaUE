@@ -61,6 +61,18 @@
  *
  * ---------------- compile time switches ----------------
  */
+// [c4augustus] PATCHED
+#if defined(__APPLE_CC__)
+  #include <TargetConditionals.h>
+    // ^ required to get #define TARGET_OS_IPHONE when compiling for iOS
+  #pragma clang diagnostic ignored "-Wshadow"
+  #pragma clang diagnostic ignored "-Wundef"
+#elif defined(_MSC_VER)
+  #pragma warning(disable: 4668) // #if macro is undefined
+  #if _MSC_VER >= 1900 // MSVC 2019 does not provide _Noreturn
+    #define _Noreturn
+  #endif
+#endif
 
 #if defined __has_include
 #  if __has_include ("mus-config.h")
@@ -36599,7 +36611,10 @@ static s7_pointer g_system(s7_scheme *sc, s7_pointer args)
 system captures the output as a string and returns it."
   #define Q_system s7_make_signature(sc, 3, s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_string_symbol), sc->is_string_symbol, sc->is_boolean_symbol)
 
-#ifdef __EMSCRIPTEN__
+// [c4augustus] PATCHED
+// iOS does not support system
+//#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__) || defined(TARGET_OS_IPHONE)
   return s7_nil(sc);
 #else
   s7_pointer name = car(args);
