@@ -113,7 +113,7 @@ scheme_arg_symbol_index_or_error(
     return ErrorPointer({s7_wrong_type_arg_error(
       s7, name, index, arg, "unmatched symbol")});
   else
-    return std::distance(choices, result);
+    return int(std::distance(choices, result));
 }
 
 static auto
@@ -160,7 +160,7 @@ call_lambda_with_s7_string(
   return s7_t(s7);
 }
 
-static class UInputBinding : public UObject {
+class UInputBinding : public UObject {
   DECLARE_CLASS_INTRINSIC(UInputBinding, UObject, CLASS_MatchedSerializers, TEXT("/Script/CoreUObject"))
   s7_scheme * s7          = nullptr;
   s7_pointer  mutHandler  = nullptr;
