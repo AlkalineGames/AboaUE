@@ -8,6 +8,11 @@
 
 struct s7_scheme;
 
+struct AlkSchemeUeCode {
+  FString const path;
+  FString const source;
+};
+
 struct AlkSchemeUeState {
   FString const scmPath;
 };
@@ -21,3 +26,10 @@ struct AlkSchemeUeMutant {
 };
 
 auto bootAlkSchemeUe() -> AlkSchemeUeMutant;
+
+auto loadSchemeUeCode(
+  FString const &path) -> AlkSchemeUeCode;
+
+auto runSchemeUeCode(
+  AlkSchemeUeMutant const &mutant,
+  AlkSchemeUeCode const &code) -> FString;

@@ -399,14 +399,28 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
       })
     ? "..END" : "FAILED")));
 #endif
+  AlkSchemeUeMutant const mutant = {{scmPath}, s7session};
+  auto const code = loadSchemeUeCode(
+    FPaths::Combine(scmPath, TEXT("boot.scm")));
+  if (!code.source.IsEmpty()) {
+    auto result = runSchemeUeCode(mutant, code);
+    UE_LOG(LogAlkScheme, Log, TEXT("Scheme session booted: %s"), *result);
+  }
+  return mutant;
+}
+
+auto loadSchemeUeCode(FString const &path) -> AlkSchemeUeCode {
   FString mutSource;
-  FString const path = FPaths::Combine(scmPath, TEXT("boot.scm"));
   if (!FFileHelper::LoadFileToString(mutSource, *path, FFileHelper::EHashOptions::None))
     UE_LOG(LogAlkScheme, Error, TEXT("Failed to read %s"), *path)
-  else {
-    auto s7obj = s7_eval_c_string(s7session, TCHAR_TO_ANSI(*mutSource));
-    UE_LOG(LogAlkScheme, Log, TEXT("Scheme session booted: %s"),
-      ANSI_TO_TCHAR(s7_object_to_c_string(s7session, s7obj)));
-  }
-  return {{scmPath}, s7session};
+  return {path, mutSource};
+}
+
+auto runSchemeUeCode(
+  AlkSchemeUeMutant const &mutant,
+  AlkSchemeUeCode const &code
+) -> FString {
+  auto s7obj = s7_eval_c_string(
+    mutant.s7session, TCHAR_TO_ANSI(*code.source));
+  return ANSI_TO_TCHAR(s7_object_to_c_string(mutant.s7session, s7obj));
 }
