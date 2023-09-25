@@ -8433,7 +8433,7 @@ static s7_pointer g_symbol_table(s7_scheme *sc, s7_pointer unused_args)
    *    gensyms can cause the table's lists and symbols to change at any time.  This wreaks havoc
    *    on traversals like for-each.  So, symbol-table returns a snap-shot of the table contents
    *    at the time it is called.
-   *    (: (for-each-symbol func num) (for-each (lambda (sym) (if (> num 0) (for-each-symbol func (- num 1)) (func sym))) (symbol-table)))
+   *    (: (for-each-symbol func num) (for-each (lambda (sym) (? (> num 0) (for-each-symbol func (- num 1)) (func sym))) (symbol-table)))
    *    (for-each-symbol (lambda (sym) (gensym) 1))
    */
   for (int32_t i = 0; i < SYMBOL_TABLE_SIZE; i++)
@@ -24912,7 +24912,7 @@ static int32_t integer_length(s7_int a)
 static s7_pointer g_integer_length(s7_scheme *sc, s7_pointer args)
 {
   #define H_integer_length "(integer-length arg) returns the number of bits required to represent the integer 'arg': \
-(ceiling (log (if (< arg 0) (- arg) (+ arg 1)) 2))"
+(ceiling (log (? (< arg 0) (- arg) (+ arg 1)) 2))"
   #define Q_integer_length sc->pcl_i
 
   s7_pointer p = car(args);
@@ -25519,7 +25519,7 @@ static s7_pointer g_random(s7_scheme *sc, s7_pointer args)
   #define Q_random s7_make_signature(sc, 3, sc->is_number_symbol, sc->is_number_symbol, sc->is_random_state_symbol)
   s7_pointer r, num;
 
-  /* if we disallow (random 0) the programmer has to protect every call on random with (if (eqv? x 0) 0 (random x)).  If
+  /* if we disallow (random 0) the programmer has to protect every call on random with (? (eqv? x 0) 0 (random x)).  If
    *   we claim we're using a half-open interval, then we should also disallow (random 0.0); otherwise the following
    *   must be true: (let* ((x 0.0) (y (random x))) (and (>= y 0.0) (< y x))).  The definition above is consistent
    *   with (random 0) -> 0, simpler to use in practice, and certainly no worse than (/ 0 0) -> 1.
@@ -34017,7 +34017,7 @@ static void write_macro_readably(s7_scheme *sc, s7_pointer obj, s7_pointer port)
 {
   s7_pointer expr, body = closure_body(obj), arglist = closure_args(obj);
   /* this doesn't handle recursive macros well -- we need letrec or the equivalent as in write_closure_readably */
-  /*   (letrec ((m2 (macro (x) `(if (> ,x 0) (m2 (- ,x 1)) 32)))) (object->string m2 :readable)) */
+  /*   (letrec ((m2 (macro (x) `(? (> ,x 0) (m2 (- ,x 1)) 32)))) (object->string m2 :readable)) */
 
   port_write_string(port)(sc, (is_either_macro(obj)) ? "(macro" : "(bacro", 6, port);
   if ((is_macro_star(obj)) || (is_bacro_star(obj)))
@@ -68293,7 +68293,7 @@ static bool op_map_2(s7_scheme *sc) /* possibly inline lg */
 
 static s7_pointer revappend(s7_scheme *sc, s7_pointer a, s7_pointer b)
 {
-  /* (map (lambda (x) (if (odd? x) (apply values '(1 2 3)) (values))) (list 1 2 3 4)) is a bad case -- we have to copy the incoming list (in op_map_gather) */
+  /* (map (lambda (x) (? (odd? x) (apply values '(1 2 3)) (values))) (list 1 2 3 4)) is a bad case -- we have to copy the incoming list (in op_map_gather) */
   s7_pointer p = b;
   if (is_not_null(a))
     {
@@ -68490,7 +68490,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
 	  return(car(x));
       return(car(x));
 
-    case OP_IF1:    /* (if (values ...) ...) -- see s7.html at the end of the values writeup for explanation (we're following CL here) */
+    case OP_IF1:    /* (? (values ...) ...) -- see s7.html at the end of the values writeup for explanation (we're following CL here) */
     case OP_IF_PP: case OP_IF_PPP: case OP_IF_PR: case OP_IF_PRR:
     case OP_WHEN_PP: case OP_UNLESS_PP: case OP_WITH_LET1:
     case OP_CASE_G_G: case OP_CASE_G_S: case OP_CASE_E_G: case OP_CASE_E_S: case OP_CASE_I_S:
@@ -70693,7 +70693,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		    {
 		      set_optimize_op(expr, OP_APPLY_SA);
 		      if ((is_pair(arg2)) &&
-			  (is_normal_symbol(car(arg2)))) /* arg2 might be ((if expr op1 op2) ...) */
+			  (is_normal_symbol(car(arg2)))) /* arg2 might be ((? expr op1 op2) ...) */
 			{
 			  s7_pointer lister = lookup(sc, car(arg2));
 			  if ((is_c_function(lister)) &&
@@ -71725,7 +71725,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
       /* define adds a name to the incoming let (e), the added name is inserted into e after the first, so the caller
        *   can flush added symbols by maintaining its own pointer into the list if blockers set the car.
        * the list is used both to see local symbols and to catch "complicated" functions (find_uncomplicated_symbol).
-       * In cases like (if expr (define...)) we can't tell at this level whether the define takes place, so
+       * In cases like (? expr (define...)) we can't tell at this level whether the define takes place, so
        *   its name should not be in "e", but it needs to be marked for find_uncomplicated_symbol in a way
        *   that can be distinguished from members of "e".  So in that (rare) case, we use the associated keyword.
        *   Then find_uncomplicated_symbol can use has_keyword to tell if the keyword search is needed.
@@ -72292,7 +72292,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
   else
     {
       /* car(expr) is not a symbol, but there might be interesting stuff here */
-      /* (: (hi a) (case 1 ((1) (if (> a 2) a 2)))) */
+      /* (: (hi a) (case 1 ((1) (? (> a 2) a 2)))) */
       s7_pointer p;
 
       if (is_c_function(car_expr)) /* (#_abs x) etc */
@@ -72314,9 +72314,9 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	     (optimize_expression(sc, car(p), hop, e, false) == OPT_OOPS)))
 	  return(OPT_OOPS);
       /* here we get for example:
-       *  ((if (not (let? p)) write write-to-vector) obj p) ; not uncomplicated/c-function [((if 3d fourth third) p) in index]
-       *  ((if (symbol? (cadr f)) cadr (if (pair? (cadr f)) caadr not)) f) ; fx not symbol -- opif_a_aaq_a
-       *  ((if (input-port? port) call-with-input-file call-with-output-file) port proc) ; not safe I guess
+       *  ((? (not (let? p)) write write-to-vector) obj p) ; not uncomplicated/c-function [((? 3d fourth third) p) in index]
+       *  ((? (symbol? (cadr f)) cadr (? (pair? (cadr f)) caadr not)) f) ; fx not symbol -- opif_a_aaq_a
+       *  ((? (input-port? port) call-with-input-file call-with-output-file) port proc) ; not safe I guess
        */
     }
   return(OPT_F);
@@ -73599,7 +73599,7 @@ static bool check_tc_cond(s7_scheme *sc, s7_pointer name, int32_t vars, s7_point
 
 static bool check_tc_let(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer args, s7_pointer body)
 {
-  s7_pointer let_body = caddr(body); /* body: (let ((x (- y 1))) (if (<= x 0) 0 (f1 (- x 1)))) etc */
+  s7_pointer let_body = caddr(body); /* body: (let ((x (- y 1))) (? (<= x 0) 0 (f1 (- x 1)))) etc */
   if (((vars == 2) && ((car(let_body) == sc->if_symbol) || (car(let_body) == sc->when_symbol) || (car(let_body) == sc->unless_symbol))) ||
       ((vars == 1) && (car(let_body) == sc->if_symbol)))
     {
@@ -74170,7 +74170,7 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 	      }
 	    if (((unstarred_lambda) || ((is_null(p)) && (nvars == sc->rec_tc_args))) &&
 		(is_null(cdr(body))))
-	      { /* (if <a> #t|#f...) happens only rarely */
+	      { /* (? <a> #t|#f...) happens only rarely */
 		if (sc->got_tc)
 		  {
 		    if (check_tc(sc, func, nvars, args, car(body)))
@@ -76792,24 +76792,24 @@ static void set_if_opts(s7_scheme *sc, s7_pointer form, bool one_branch, bool re
 static s7_pointer check_if(s7_scheme *sc, s7_pointer form)
 {
   s7_pointer cdr_code, code = cdr(form);
-  if (!is_pair(code))                                /* (if) or (if . 1) */
+  if (!is_pair(code))                                /* (?) or (? . 1) */
     syntax_error_nr(sc, "(if): if needs at least 2 expressions: ~A", 41, form);
 
   cdr_code = cdr(code);
-  if (!is_pair(cdr_code))                            /* (if 1) */
+  if (!is_pair(cdr_code))                            /* (? 1) */
     {
       if (is_null(cdr(code)))
 	syntax_error_nr(sc, "~S: if needs another clause", 27, form);
-      syntax_error_nr(sc, "~S: stray dot?", 14, form);    /* (if 1 . 2) */
+      syntax_error_nr(sc, "~S: stray dot?", 14, form);    /* (? 1 . 2) */
     }
 
   if (is_pair(cdr(cdr_code)))
     {
-      if (is_not_null(cddr(cdr_code)))               /* (if 1 2 3 4) */
+      if (is_not_null(cddr(cdr_code)))               /* (? 1 2 3 4) */
 	syntax_error_nr(sc, "too many clauses for if: ~A", 27, form);
     }
   else
-    if (is_not_null(cdr(cdr_code)))                  /* (if 1 2 . 3) */
+    if (is_not_null(cdr(cdr_code)))                  /* (? 1 2 . 3) */
       syntax_error_nr(sc, "if: ~A has improper list?", 25, form);
 
   pair_set_syntax_op(form, OP_IF_UNCHECKED);
@@ -76834,7 +76834,7 @@ static void op_if_unchecked(s7_scheme *sc)
 static bool op_if1(s7_scheme *sc)
 {
   sc->code = (is_true(sc, sc->value)) ? car(sc->code) : unchecked_car(cdr(sc->code));
-  /* even pre-optimization, (if #f #f) ==> #<unspecified> because unique_car(sc->nil) = sc->unspecified */
+  /* even pre-optimization, (? #f #f) ==> #<unspecified> because unique_car(sc->nil) = sc->unspecified */
   if (is_pair(sc->code))
     return(true);
   sc->value = (is_symbol(sc->code)) ? lookup_checked(sc, sc->code) : sc->code;
@@ -79743,7 +79743,7 @@ static goto_t op_set2(s7_scheme *sc)
        *   if it's a list, it looks at the car of that list to decide which setter to call,
        *   if it's a list of lists, it passes the embedded lists to eval, then looks at the
        *   car of the result.  This means that we can do crazy things like:
-       *   (let ((x '(1)) (y '(2))) (set! ((if #t x y) 0) 32) x)
+       *   (let ((x '(1)) (y '(2))) (set! ((? #t x y) 0) 32) x)
        * the other args need to be evaluated (but not the list as if it were code):
        *   (let ((L '((1 2 3))) (index 1)) (set! ((L 0) index) 32) L)
        */
@@ -80349,7 +80349,7 @@ static s7_pointer check_do(s7_scheme *sc)
 		   (opt1_cfunc(end) == sc->geq_2)))
 		{
 		  if ((one_line) &&
-		      ((!is_optimized(car(body))) || (op_no_hop(car(body)) != OP_SAFE_C_NC)) && /* this does happen: (if (= i 3) (vector-set! j 0 i)) */
+		      ((!is_optimized(car(body))) || (op_no_hop(car(body)) != OP_SAFE_C_NC)) && /* this does happen: (? (= i 3) (vector-set! j 0 i)) */
 		      (is_symbol_and_syntactic(caar(body))) &&
 		      (s7_is_integer(caddr(step_expr))) && /* this currently blocks s7_optimize of float steppers */
 		      (s7_integer_clamped_if_gmp(sc, caddr(step_expr)) == 1))
@@ -86936,8 +86936,8 @@ static void opinit_cond_a_a_a_a_opla_laq(s7_scheme *sc, s7_pointer code, bool co
   else
     {
       rec_set_test(sc, cdr(code));
-      rec_set_res(sc, cddr(code));       /* (if a b...) */
-      rec_set_f1(sc, opt1_pair(code));   /* cdr(cadddr(code)), (if a b (if c d...)) */
+      rec_set_res(sc, cddr(code));       /* (? a b...) */
+      rec_set_f1(sc, opt1_pair(code));   /* cdr(cadddr(code)), (? a b (? c d...)) */
       rec_set_f2(sc, cdr(opt1_pair(code)));
     }
   rec_set_f3(sc, cdadr(caller));
@@ -86995,8 +86995,8 @@ static void opinit_cond_a_a_a_a_oplaa_laaq(s7_scheme *sc, bool cond_case)
   else
     {
       rec_set_test(sc, cdr(sc->code));
-      rec_set_res(sc, cddr(sc->code));       /* (if a b...) */
-      rec_set_f1(sc, opt1_pair(sc->code));   /* cdr(cadddr(sc->code)), (if a b (if c d...)) */
+      rec_set_res(sc, cddr(sc->code));       /* (? a b...) */
+      rec_set_f1(sc, opt1_pair(sc->code));   /* cdr(cadddr(sc->code)), (? a b (? c d...)) */
       rec_set_f2(sc, cdr(opt1_pair(sc->code)));
     }
   sc->rec_f3p = cdadr(caller);
@@ -88280,7 +88280,7 @@ static bool eval_car_pair(s7_scheme *sc)
 		}}
 	  set_no_int_opt(code);
 	}
-      /* ((if op1 op2) args...) is another somewhat common case */
+      /* ((? op1 op2) args...) is another somewhat common case */
       if ((car(carc) == sc->quote_symbol) &&        /* ('and #f) */
 	  ((!is_pair(cdr(carc))) ||                 /* ((quote . #\h) (2 . #\i)) ! */
 	   (is_symbol_and_syntactic(cadr(carc)))))  /* ('or #f) but not ('#_or #f) */
@@ -88378,7 +88378,7 @@ static goto_t trailers(s7_scheme *sc)
 	  set_optimize_op(code, OP_PAIR_SYM);	  /* mostly stuff outside functions (unopt) */
 	  return(goto_eval_args_top);
 	}
-      if (is_pair(carc))                          /* ((if x y z) a b) etc */
+      if (is_pair(carc))                          /* ((? x y z) a b) etc */
 	return((eval_car_pair(sc)) ? goto_top_no_pop : goto_eval);
 
       /* here we can get syntax objects like quote */
@@ -91059,7 +91059,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_UNOPT:       goto UNOPT;
 	case OP_SYMBOL:      sc->value = lookup_checked(sc, sc->code);     continue;
 	case OP_CONSTANT:    sc->value = sc->code;                         continue;
-	case OP_PAIR_PAIR:   if (op_pair_pair(sc)) goto EVAL;              continue;         /* car is pair ((if x car cadr) ...) */
+	case OP_PAIR_PAIR:   if (op_pair_pair(sc)) goto EVAL;              continue;         /* car is pair ((? x car cadr) ...) */
 	case OP_PAIR_ANY:    sc->value = car(sc->code);                    goto EVAL_ARGS_TOP;
 	case OP_PAIR_SYM:    if (op_pair_sym(sc)) goto EVAL_ARGS_TOP;      continue;
 
@@ -94560,7 +94560,7 @@ static void init_setters(s7_scheme *sc)
 static void init_syntax(s7_scheme *sc)
 {
   #define H_quote             "(quote obj) returns obj unevaluated.  'obj is an abbreviation for (quote obj)."
-  #define H_if                "(if expr true-stuff optional-false-stuff) evaluates expr, then if it is true, evaluates true-stuff; otherwise, \
+  #define H_if                "(? expr true-stuff optional-false-stuff) evaluates expr, then if it is true, evaluates true-stuff; otherwise, \
 if optional-false-stuff exists, it is evaluated."
   #define H_when              "(when expr ...) evaluates expr, and if it is true, evaluates each form in its body, returning the value of the last"
   #define H_unless            "(unless expr ...) evaluates expr, and if it is false, evaluates each form in its body, returning the value of the last"
@@ -94606,7 +94606,7 @@ shorthand for (: func (lambda args ...))"
 then returns each var to its original value."
 
   sc->quote_symbol =             syntax(sc, "quote",                   OP_QUOTE,             int_one,  int_one,    H_quote);
-  sc->if_symbol =                syntax(sc, "if",                      OP_IF,                int_two,  int_three,  H_if);
+  sc->if_symbol =                syntax(sc, "?",                       OP_IF,                int_two,  int_three,  H_if);                 // [c4augustus]
   sc->when_symbol =              syntax(sc, "when",                    OP_WHEN,              int_two,  max_arity,  H_when);
   sc->unless_symbol =            syntax(sc, "unless",                  OP_UNLESS,            int_two,  max_arity,  H_unless);
   sc->begin_symbol =             syntax(sc, "begin",                   OP_BEGIN,             int_zero, max_arity,  H_begin);      /* (begin) is () */
@@ -95806,7 +95806,7 @@ s7_scheme *s7_init(void)
   s7_eval_c_string(sc, "(: make-polar                                                                \n\
                           (let ((+signature+ '(number? real? real?)))                                     \n\
                             (lambda (mag ang)                                                             \n\
-                              (if (and (real? mag) (real? ang))                                           \n\
+                              (? (and (real? mag) (real? ang))                                           \n\
                                   (complex (* mag (cos ang)) (* mag (sin ang)))                           \n\
                                   (error 'wrong-type-arg \"make-polar arguments should be real\")))))");
 
@@ -95818,13 +95818,13 @@ s7_scheme *s7_init(void)
 
   s7_eval_c_string(sc, "(define-macro (cond-expand . clauses)                                             \n\
                           (letrec ((traverse (lambda (tree)                                               \n\
-		                               (if (pair? tree)                                           \n\
+		                               (? (pair? tree)                                           \n\
 			                           (cons (traverse (car tree))                            \n\
 				                         (case (cdr tree) ((())) (else => traverse)))     \n\
-			                           (if (memq tree '(and or not else)) tree                \n\
+			                           (? (memq tree '(and or not else)) tree                \n\
 			                               (and (symbol? tree) (provided? tree)))))))         \n\
                             (cons 'cond (map (lambda (clause)                                             \n\
-		                               (if (pair? clause)                                         \n\
+		                               (? (pair? clause)                                         \n\
                                                    (cons (traverse (car clause))                          \n\
 			                                 (case (cdr clause) ((()) '(#f)) (else)))         \n\
                                                    (error 'read-error \"cond-expand: clause is not a pair\"))) \n\
@@ -95868,7 +95868,7 @@ s7_scheme *s7_init(void)
                               (lambda (hook lst)                                                          \n\
                                 (when (or (not (procedure? hook)) (continuation? hook) (goto? hook))      \n\
 		                  (error 'wrong-type-arg \"hook-functions hook must be a procedure created by make-hook: ~S\" hook)) \n\
-                                (if (do ((p lst (cdr p)))                                                 \n\
+                                (? (do ((p lst (cdr p)))                                                 \n\
                                         ((not (and (pair? p)                                              \n\
                                                    (procedure? (car p))                                   \n\
                                                    (aritable? (car p) 1)))                                \n\
