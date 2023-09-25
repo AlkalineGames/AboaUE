@@ -9,13 +9,13 @@
 ( ;; TODO: @@@ NEEDS TO BE A LIST OF EXPRESSIONS FOR NOW
 (ue-log "TRACE SCHEME >>> BEGIN booting AlkalineSchemeUE")
 
-(define trace-log #f)
-(define trace-print #f)
+(: trace-log #f)
+(: trace-print #f)
 
-(define (hook-player-input world device action durations func)
+(: (hook-player-input world device action durations func)
   ;; TODO: @@@ ASSUMING 'pointing DEVICE
   ;;(ue-log "TRACE SCHEME >>> BEGIN hook-input")
-  (define (trace-event event finger location)
+  (: (trace-event event finger location)
     (let ((info (format #f "TRACE SCHEME >>> ~S finger ~S at ~S" event finger location)))
       (if trace-log   (ue-log info))
       (if trace-print (ue-print-string world info))))
@@ -27,7 +27,7 @@
     (lambda (finger location) (trace-event "repeated" finger location))))
   ;;(ue-log "TRACE SCHEME <<< END hook-input"))
 
-(define (open-scheme-editor screen-pos)
+(: (open-scheme-editor screen-pos)
   ;; TODO: ### IMPLEMENT
   (if trace-log (ue-log (format #f "TRACE SCHEME (open-scheme-editor ~S)" screen-pos))))
 
