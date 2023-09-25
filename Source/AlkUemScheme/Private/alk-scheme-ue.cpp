@@ -8,7 +8,7 @@
 
 #include "alk-ue-helper.h"
 
-#include "s7.h"
+#include "aboa-s7.h"
 
 #include "Components/InputComponent.h"
 #include "HAL/PlatformFileManager.h"
@@ -384,7 +384,7 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
 
   FString const scmPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(
       FPaths::ProjectPluginsDir(),
-      TEXT("AlkalineSchemeUE"), TEXT("Source"), TEXT("scm")));
+      TEXT("AlkalineSchemeUE"), TEXT("Source"), TEXT("aboa")));
 #if ALK_TRACING
   UE_LOG(LogAlkScheme, Display,
     TEXT("BEGIN listing scm path %s"), *scmPath);
@@ -401,7 +401,7 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
 #endif
   AlkSchemeUeMutant const mutant = {{scmPath}, s7session};
   auto const code = loadSchemeUeCode(
-    FPaths::Combine(scmPath, TEXT("boot.scm")));
+    FPaths::Combine(scmPath, TEXT("boot.aboa")));
   if (!code.source.IsEmpty()) {
     auto result = runSchemeUeCode(mutant, code);
     UE_LOG(LogAlkScheme, Log, TEXT("Scheme session booted: %s"), *result);

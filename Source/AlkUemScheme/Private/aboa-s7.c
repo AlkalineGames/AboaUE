@@ -431,7 +431,7 @@
   #define s7_complex_i (s7_complex)_Complex_I /* a float, but we want a double */
 #endif
 
-#include "s7.h"
+#include "aboa-s7.h"
 
 #ifndef M_PI
   #define M_PI 3.1415926535897932384626433832795029L
