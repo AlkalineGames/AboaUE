@@ -7288,7 +7288,7 @@ static void mark_rootlet(s7_scheme *sc)
   /* we're not marking slot_symbol above which makes me worry that a top-level gensym won't be protected
    *   (apply define (gensym) '(32)), then try to get the GC to clobber {gensym}-0,
    *   but I can't get it to break, so they must be protected somehow; apparently they are
-   *   removed from the heap!  At least: (define-macro (defit) (let ((n (gensym))) `(: (,n) (format #t "fun")))) (defit)
+   *   removed from the heap!  At least: (define-macro (defit) (% ((n (gensym))) `(: (,n) (format #t "fun")))) (defit)
    *   removes the function from the heap (protecting the gensym).
    */
 }
@@ -8720,11 +8720,11 @@ static s7_pointer g_symbol(s7_scheme *sc, s7_pointer args)
   #define H_symbol "(symbol str ...) returns its string arguments concatenated and converted to a symbol"
   #define Q_symbol s7_make_circular_signature(sc, 1, 2, sc->is_symbol_symbol, sc->is_string_symbol)
 
-  /* (let ((x 0)) (set! (symbol "x") 12)) ;symbol (a c-function) does not have a setter: (set! (symbol "x") 12)
-   *   (let (((symbol "x") 3)) x) ; bad variable ((symbol "x")
-   *   (let ((x 2)) (+ (symbol "x") 1)) ;+ first argument, x, is a symbol but should be a number
+  /* (% ((x 0)) (set! (symbol "x") 12)) ;symbol (a c-function) does not have a setter: (set! (symbol "x") 12)
+   *   (% (((symbol "x") 3)) x) ; bad variable ((symbol "x")
+   *   (% ((x 2)) (+ (symbol "x") 1)) ;+ first argument, x, is a symbol but should be a number
    *   maybe document this: (symbol...) just returns the symbol
-   *   (let ((x 3)) (+ (symbol->value (symbol "x")) 1)) -> 4, (let ((x 0)) (apply set! (symbol "x") (list 32)) x) -> 32
+   *   (% ((x 3)) (+ (symbol->value (symbol "x")) 1)) -> 4, (% ((x 0)) (apply set! (symbol "x") (list 32)) x) -> 32
    */
 
   s7_int len = 0, cur_len;
@@ -9164,7 +9164,7 @@ static void remove_function_from_heap(s7_scheme *sc, s7_pointer value)
   s7_pointer lt;
   remove_from_heap(sc, closure_args(value));
   remove_from_heap(sc, closure_body(value));
-  /* remove closure if it's local to current func (meaning (: f (let ...) (^ ...)) removes the enclosing let) */
+  /* remove closure if it's local to current func (meaning (: f (% ...) (^ ...)) removes the enclosing let) */
   lt = closure_let(value); /* closure_let and all its outlets can't be rootlet */
   if ((is_let(lt)) && (!let_removed(lt)) && (lt != sc->shadow_rootlet))
     {
@@ -9573,7 +9573,7 @@ static s7_pointer g_cutlet(s7_scheme *sc, s7_pointer args)
     }
   /* besides removing the slot we have to make sure the symbol_id does not match else
    *   let-ref and others will use the old slot!  What's the un-id?  Perhaps the next one?
-   *   (let ((b 1)) (let ((b 2)) (cutlet (curlet) 'b)) b)
+   *   (% ((b 1)) (% ((b 2)) (cutlet (curlet) 'b)) b)
    */
   the_un_id = ++sc->let_number;
 
@@ -9903,7 +9903,7 @@ s7_pointer s7_let_to_list(s7_scheme *sc, s7_pointer let)
 	for (x = let_slots(let); tis_slot(x); x = next_slot(x))
 	  sc->w = cons_unchecked(sc, cons(sc, slot_symbol(x), slot_value(x)), sc->w);
       else
-	/* (begin (load "mockery.scm") (let ((lt ((*mock-pair* 'mock-pair) 1 2 3))) (format *stderr* "~{~A ~}" lt))) */
+	/* (begin (load "mockery.scm") (% ((lt ((*mock-pair* 'mock-pair) 1 2 3))) (format *stderr* "~{~A ~}" lt))) */
 	while (true)
 	  {
 	    x = s7_iterate(sc, iter);
@@ -9948,7 +9948,7 @@ static s7_pointer call_let_ref_fallback(s7_scheme *sc, s7_pointer let, s7_pointe
 {
   s7_pointer p;
   push_stack_no_let(sc, OP_GC_PROTECT, sc->value, sc->code);
-  /* (let ((x #f)) (let begin ((x 1234)) (begin 1) 2)) -> stack overflow eventually, but should we try to catch it? */
+  /* (% ((x #f)) (% begin ((x 1234)) (begin 1) 2)) -> stack overflow eventually, but should we try to catch it? */
   p = s7_apply_function(sc, find_method(sc, let, sc->let_ref_fallback_symbol), set_qlist_2(sc, let, symbol));
   unstack(sc);
   sc->code = T_Pos(sc->stack_end[0]); /* can be #<unused> */
@@ -9969,7 +9969,7 @@ static s7_pointer call_let_set_fallback(s7_scheme *sc, s7_pointer let, s7_pointe
 
 static /* inline */ s7_pointer let_ref(s7_scheme *sc, s7_pointer let, s7_pointer symbol)
 {
-  /* (let ((a 1)) ((curlet) 'a)) or ((rootlet) 'abs) */
+  /* (% ((a 1)) ((curlet) 'a)) or ((rootlet) 'abs) */
   if (!is_let(let))
     {
       let = find_let(sc, let);
@@ -10014,7 +10014,7 @@ static /* inline */ s7_pointer let_ref(s7_scheme *sc, s7_pointer let, s7_pointer
       if (has_let_ref_fallback(let))
 	return(call_let_ref_fallback(sc, let, symbol));
     }
-  return((is_slot(global_slot(symbol))) ? global_value(symbol) : sc->undefined); /* (let () ((curlet) 'pi)) */
+  return((is_slot(global_slot(symbol))) ? global_value(symbol) : sc->undefined); /* (% () ((curlet) 'pi)) */
 }
 
 s7_pointer s7_let_ref(s7_scheme *sc, s7_pointer let, s7_pointer symbol) {return(let_ref(sc, let, symbol));}
@@ -10154,11 +10154,11 @@ s7_pointer s7_let_set(s7_scheme *sc, s7_pointer let, s7_pointer symbol, s7_point
 
 static s7_pointer g_let_set(s7_scheme *sc, s7_pointer args)
 {
-  /* (let ((a 1)) (set! ((curlet) 'a) 32) a) */
+  /* (% ((a 1)) (set! ((curlet) 'a) 32) a) */
   #define H_let_set "(let-set! let sym val) sets the symbol sym's value in the let to val"
   #define Q_let_set s7_make_signature(sc, 4, sc->T, sc->is_let_symbol, sc->is_symbol_symbol, sc->T)
 
-  if (!is_pair(cdr(args))) /* (let ((a 123.0)) (: (f) (set! (let-ref) a)) (catch #t f (^ args #f)) (f)) */
+  if (!is_pair(cdr(args))) /* (% ((a 123.0)) (: (f) (set! (let-ref) a)) (catch #t f (^ args #f)) (f)) */
     error_nr(sc, sc->wrong_number_of_args_symbol,
 	     set_elist_3(sc, wrap_string(sc, "~S: not enough arguments: ~S", 28), sc->let_set_symbol, sc->code));
 
@@ -10263,7 +10263,7 @@ static s7_pointer let_copy(s7_scheme *sc, s7_pointer let)
 	}}
   /* We can't do a (normal) loop here then reverse the slots later because the symbol's local_slot has to
    *    match the unshadowed slot, not the last in the list:
-   *    (let ((e1 (inlet 'a 1 'a 2))) (let ((e2 (copy e1))) (list (equal? e1 e2) (equal? (e1 'a) (e2 'a)))))
+   *    (% ((e1 (inlet 'a 1 'a 2))) (% ((e2 (copy e1))) (list (equal? e1 e2) (equal? (e1 'a) (e2 'a)))))
    */
   sc->temp3 = sc->unused;
   return(new_e);
@@ -10363,7 +10363,7 @@ static s7_pointer g_outlet(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_set_outlet(s7_scheme *sc, s7_pointer args)
 {
-  /* (let ((a 1)) (let ((b 2)) (set! (outlet (curlet)) (rootlet)) ((curlet) 'a))) */
+  /* (% ((a 1)) (% ((b 2)) (set! (outlet (curlet)) (rootlet)) ((curlet) 'a))) */
   s7_pointer let = car(args), new_outer;
 
   if (!is_let(let))
@@ -10489,7 +10489,7 @@ s7_pointer s7_symbol_local_value(s7_scheme *sc, s7_pointer sym, s7_pointer let)
   if (is_slot(global_slot(sym)))
     return(global_value(sym));
 
-  /* (let ((e (curlet))) (let ((a 1)) (symbol->value 'a e))) -> #<undefined> not 1 */
+  /* (% ((e (curlet))) (% ((a 1)) (symbol->value 'a e))) -> #<undefined> not 1 */
   return(sc->undefined); /* 29-Nov-17 */
 }
 
@@ -10501,8 +10501,8 @@ static s7_pointer s7_starlet(s7_scheme *sc, s7_int choice);
 
 static s7_pointer g_symbol_to_value(s7_scheme *sc, s7_pointer args)
 {
-  #define H_symbol_to_value "(symbol->value sym (let (curlet))) returns the binding of (the value associated with) the \
-symbol sym in the given let: (let ((x 32)) (symbol->value 'x)) -> 32"
+  #define H_symbol_to_value "(symbol->value sym (% (curlet))) returns the binding of (the value associated with) the \
+symbol sym in the given let: (% ((x 32)) (symbol->value 'x)) -> 32"
   #define Q_symbol_to_value s7_make_signature(sc, 3, sc->T, sc->is_symbol_symbol, sc->is_let_symbol)
   /* (symbol->value 'x e) => (e 'x)? */
 
@@ -11033,7 +11033,7 @@ static s7_pointer copy_closure(s7_scheme *sc, s7_pointer fnc)
 /* -------------------------------- defined? -------------------------------- */
 static s7_pointer g_is_defined(s7_scheme *sc, s7_pointer args)
 {
-  #define H_is_defined "(defined? symbol (let (curlet)) ignore-globals) returns #t if symbol has a binding (a value) in the let. \
+  #define H_is_defined "(defined? symbol (% (curlet)) ignore-globals) returns #t if symbol has a binding (a value) in the let. \
 Only the let is searched if ignore-globals is not #f."
   #define Q_is_defined s7_make_signature(sc, 4, sc->is_boolean_symbol, sc->is_symbol_symbol, \
                        s7_make_signature(sc, 5, sc->is_let_symbol, sc->is_procedure_symbol, sc->is_macro_symbol, \
@@ -11172,8 +11172,8 @@ s7_pointer s7_define_constant(s7_scheme *sc, const char *name, s7_pointer value)
   return(s7_define_constant_with_environment(sc, sc->nil, name, value));
 }
 
-/* (: (func a) (let ((cvar (+ a 1))) cvar)) (define-constant cvar 23) (func 1) -> ;can't bind an immutable object: cvar
- * (let ((aaa 1)) (define-constant aaa 32) (set! aaa 3)) -> set!: can't alter immutable object: aaa
+/* (: (func a) (% ((cvar (+ a 1))) cvar)) (define-constant cvar 23) (func 1) -> ;can't bind an immutable object: cvar
+ * (% ((aaa 1)) (define-constant aaa 32) (set! aaa 3)) -> set!: can't alter immutable object: aaa
  */
 
 s7_pointer s7_define_constant_with_documentation(s7_scheme *sc, const char *name, s7_pointer value, const char *help)
@@ -11573,7 +11573,7 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer new_v, s7_pointer old_v, 
 	      copy_stack_list_set_immutable(p, nv[i]);
 	    }
 	  /* lst can be dotted or circular here.  The circular list only happens in a case like:
-	   *    (dynamic-wind (^ () (eq? (let ((lst (cons 1 2))) (set-cdr! lst lst) lst) (call/cc (^ (k) k)))) (^ () #f) (^ () #f))
+	   *    (dynamic-wind (^ () (eq? (% ((lst (cons 1 2))) (set-cdr! lst lst) lst) (call/cc (^ (k) k)))) (^ () #f) (^ () #f))
 	   *    proper_list_reverse_in_place(sc->args) is one reason we need to copy, another reuse_as_let
 	   */
 	  else
@@ -11824,7 +11824,7 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
        *   on re-entry; that strikes me as incoherently complex -- they've wrapped a hidden dynamic-wind around the
        *   call/cc to restore all let-temp vars!  I think let-temp here should be the same as let -- if you jump back
        *   in, nothing hidden happens. So,
-       *     (let ((x #f) (cc #f))
+       *     (% ((x #f) (cc #f))
        *       (let-temporarily ((x 1))
        *         (set! x 2) (call/cc (^ (r) (set! cc r))) (display x) (unless (= x 2) (newline) (exit)) (set! x 3) (cc)))
        *   behaves the same (in this regard) if let-temp is replaced with let.
@@ -14763,7 +14763,7 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, const char *name, bool with
     {
       /* this needs to be unsettable via *#readers*:
        *    (set! *#readers* (list (cons #\_ (^ (str) (string->symbol (substring str 1))))))
-       *    (let ((+ -)) (#_+ 1 2)): -1
+       *    (% ((+ -)) (#_+ 1 2)): -1
        */
       s7_pointer sym = make_symbol_with_strlen(sc, (const char *)(name + 1));
       if ((!is_gensym(sym)) && (is_slot(initial_slot(sym))))
@@ -18585,8 +18585,8 @@ static s7_pointer floor_p_p(s7_scheme *sc, s7_pointer x)
 	/* C "/" truncates? -- C spec says "truncation toward 0" */
 	/* we're avoiding "floor" here because the int->double conversion introduces inaccuracies for big numbers
 	 *   but it's used by opt_i_d_c (via s7_number_to_real) so floor_i_7d below can return different results:
-	 *   (let () (: (func) (do ((i 0 (+ i 1))) ((= i 1)) (display (floor 3441313796169221281/1720656898084610641)) (newline))) (func)): 1
-	 *   (let () (: (func) (do ((i 0 (+ i 1))) ((= i 1)) (display (/ (floor 3441313796169221281/1720656898084610641))) (newline))) (func)): 1/2
+	 *   (% () (: (func) (do ((i 0 (+ i 1))) ((= i 1)) (display (floor 3441313796169221281/1720656898084610641)) (newline))) (func)): 1
+	 *   (% () (: (func) (do ((i 0 (+ i 1))) ((= i 1)) (display (/ (floor 3441313796169221281/1720656898084610641))) (newline))) (func)): 1/2
 	 */
 	return(make_integer(sc, (numerator(x) < 0) ? (val - 1) : val)); /* not "val" because it might be truncated to 0 */
       }
@@ -20782,7 +20782,7 @@ static s7_pointer g_mul_xf(s7_scheme *sc, s7_pointer x, s7_double y, int32_t num
 {
   /* it's possible to return different argument NaNs depending on the expression or how it is wrapped:
    *   (* (bignum +nan.0) +nan.123) -> nan.123
-   *   (let () (: (func) (* (bignum +nan.0) +nan.123)) (func) (func)) -> nan.0
+   *   (% () (: (func) (* (bignum +nan.0) +nan.123)) (func) (func)) -> nan.0
    * latter call is fx_c_aaa->fx_c_ac->g_mul_xf (if +nan.122 instead of +nan.0, we get +nan.122 so we always get one of the NaNs)
    */
   switch (type(x))
@@ -20869,7 +20869,7 @@ static s7_int multiply_i_ii(s7_int i1, s7_int i2)
 #endif
       return(S7_INT64_MAX); /* this is inconsistent with other unopt cases where an overflow -> double result */
     }
-  /* (let () (: (func) (do ((i 0 (+ i 1))) ((= i 1)) (do ((j 0 (+ j 1))) ((= j 1)) (even? (* (ash 1 43) (ash 1 43)))))) (: (hi) (func)) (hi)) */
+  /* (% () (: (func) (do ((i 0 (+ i 1))) ((= i 1)) (do ((j 0 (+ j 1))) ((= j 1)) (even? (* (ash 1 43) (ash 1 43)))))) (: (hi) (func)) (hi)) */
   return(val);
 #else
   return(i1 * i2);
@@ -25348,7 +25348,7 @@ s7_pointer s7_random_state(s7_scheme *sc, s7_pointer args)
 {
   #define H_random_state "(random-state seed (carry plausible-default)) returns a new random number state initialized with 'seed'. \
 Pass this as the second argument to 'random' to get a repeatable random number sequence:\n\
-    (let ((seed (random-state 1234))) (random 1.0 seed))"
+    (% ((seed (random-state 1234))) (random 1.0 seed))"
   #define Q_random_state s7_make_circular_signature(sc, 1, 2, sc->is_random_state_symbol, sc->is_integer_symbol)
 
 #if WITH_GMP
@@ -25505,7 +25505,7 @@ static double next_random(s7_pointer r)
    * can the multiply-add+logand above return 0? I'm getting 0's from (random (expt 2 62))
    */
 
-  /* (let ((mx 0) (mn 1000)) (do ((i 0 (+ i 1))) ((= i 10000)) (let ((val (random 123))) (set! mx (max mx val)) (set! mn (min mn val)))) (list mn mx)) */
+  /* (% ((mx 0) (mn 1000)) (do ((i 0 (+ i 1))) ((= i 10000)) (% ((val (random 123))) (set! mx (max mx val)) (set! mn (min mn val)))) (list mn mx)) */
   return(result);
 #else
   mpfr_urandomb(sc->mpfr_1, random_gmp_state(sc->default_random_state));
@@ -25521,7 +25521,7 @@ static s7_pointer g_random(s7_scheme *sc, s7_pointer args)
 
   /* if we disallow (random 0) the programmer has to protect every call on random with (? (eqv? x 0) 0 (random x)).  If
    *   we claim we're using a half-open interval, then we should also disallow (random 0.0); otherwise the following
-   *   must be true: (let* ((x 0.0) (y (random x))) (and (>= y 0.0) (< y x))).  The definition above is consistent
+   *   must be true: (%* ((x 0.0) (y (random x))) (and (>= y 0.0) (< y x))).  The definition above is consistent
    *   with (random 0) -> 0, simpler to use in practice, and certainly no worse than (/ 0 0) -> 1.
    */
   if (is_null(cdr(args)))
@@ -27371,7 +27371,7 @@ static s7_pointer g_strings_are_equal(s7_scheme *sc, s7_pointer args)
   #define Q_strings_are_equal sc->pcl_bs
 
   /* C-based check stops at null, but we can have embedded nulls.
-   *   (let ((s1 "1234") (s2 "1245")) (string-set! s1 1 #\null) (string-set! s2 1 #\null) (string=? s1 s2))
+   *   (% ((s1 "1234") (s2 "1245")) (string-set! s1 1 #\null) (string-set! s2 1 #\null) (string=? s1 s2))
    */
   s7_pointer y = car(args);
   bool happy = true;
@@ -30575,7 +30575,7 @@ s7_pointer s7_load_c_string(s7_scheme *sc, const char *content, s7_int bytes)
 
 static s7_pointer g_load(s7_scheme *sc, s7_pointer args)
 {
-  #define H_load "(load file (let (rootlet))) loads the scheme file 'file'. The 'let' argument \
+  #define H_load "(load file (% (rootlet))) loads the scheme file 'file'. The 'let' argument \
 defaults to the rootlet.  To load into the current environment instead, pass (curlet)."
   #define Q_load s7_make_signature(sc, 3, sc->values_symbol, sc->is_string_symbol, sc->is_let_symbol)
 
@@ -31002,7 +31002,7 @@ s7_pointer s7_eval_c_string(s7_scheme *sc, const char *str) {return(s7_eval_c_st
 
 static s7_pointer g_eval_string(s7_scheme *sc, s7_pointer args)
 {
-  #define H_eval_string "(eval-string str (let (curlet))) returns the result of evaluating the string str as Scheme code"
+  #define H_eval_string "(eval-string str (% (curlet))) returns the result of evaluating the string str as Scheme code"
   #define Q_eval_string s7_make_signature(sc, 3, sc->values_symbol, sc->is_string_symbol, sc->is_let_symbol)
 
   s7_pointer port, str = car(args);
@@ -31346,7 +31346,7 @@ static s7_pointer g_is_iterator(s7_scheme *sc, s7_pointer args)
 
   s7_pointer x = car(args);
   if (is_iterator(x)) return(sc->T);
-  /* closure itself is not an iterator: (let ((c1 (let ((+iterator+ #t) (a 0)) (^ () (set! a (+ a 1)))))) (iterate c1)): error (a function not an iterator) */
+  /* closure itself is not an iterator: (% ((c1 (% ((+iterator+ #t) (a 0)) (^ () (set! a (+ a 1)))))) (iterate c1)): error (a function not an iterator) */
   check_boolean_method(sc, is_iterator, sc->is_iterator_symbol, args);
   return(sc->F);
 }
@@ -31482,7 +31482,7 @@ static s7_pointer vector_iterate(s7_scheme *sc, s7_pointer obj)
 static s7_pointer closure_iterate(s7_scheme *sc, s7_pointer obj)
 {
   /* this can be confusing: below a hash-table is the "function", and a function is the "iterator" only because with-let exports +iterator+=#t -> infinite loop!
-       (with-let (let ((+iterator+ #t)) (^ () #<eof>))
+       (with-let (% ((+iterator+ #t)) (^ () #<eof>))
          (for-each 
           (make-hash-table)       ; (hash-table) -- ((hash-table) ()) is #f (not an error)
              ;(vector 1)          ; error: vector-ref second argument, (), is nil but should be an integer
@@ -32314,9 +32314,9 @@ static void slashify_string_to_port(s7_scheme *sc, s7_pointer port, const char *
    *    but that is not ideal.  I'd like to use ~S for error messages, so that
    *    strings are clearly identified via the double-quotes, but this way of
    *    writing them is ugly:
-   *      (let ((str (make-string 8 #\null))) (set! (str 0) #\a) str) -> "a\x00\x00\x00\x00\x00\x00\x00"
+   *      (% ((str (make-string 8 #\null))) (set! (str 0) #\a) str) -> "a\x00\x00\x00\x00\x00\x00\x00"
    *    but it would be misleading to omit them because:
-   *      (let ((str (make-string 8 #\null))) (set! (str 0) #\a) (string-append str "bc")) -> "a\x00\x00\x00\x00\x00\x00\x00bc"
+   *      (% ((str (make-string 8 #\null))) (set! (str 0) #\a) (string-append str "bc")) -> "a\x00\x00\x00\x00\x00\x00\x00bc"
    * also it is problematic to use sc->print_length here (rather than a separate string-print-length) because
    *    it is normally (say) 12 which truncates just about every string.  In CL, *print-length*
    *    does not affect strings, symbols, or bit-vectors.  But if the string is enormous,
@@ -32805,7 +32805,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	{
 	  if (is_typed_vector(vect))
 	    port_write_string(port)(sc, "(let ((<v> ", 11, port);
-	  /* (let ((v (make-vector 3 'a symbol?))) (object->string v :readable)): "(let ((<v> (vector 'a 'a 'a))) (set! (vector-typer <v>) symbol?) <v>)" */
+	  /* (% ((v (make-vector 3 'a symbol?))) (object->string v :readable)): "(let ((<v> (vector 'a 'a 'a))) (set! (vector-typer <v>) symbol?) <v>)" */
 
 	  if (vector_rank(vect) > 1)
 	    port_write_string(port)(sc, "(subvector ", 11, port);
@@ -33902,8 +33902,8 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
   if (sc->short_print)       {port_write_string(port)(sc, "#<let>", 6, port);    return;}
 
   /* circles can happen here:
-   *    (let () (let ((b (curlet))) (curlet))):    #<let 'b #<let>>
-   * or (let ((b #f)) (set! b (curlet)) (curlet)): #1=#<let 'b #1#>
+   *    (% () (% ((b (curlet))) (curlet))):    #<let 'b #<let>>
+   * or (% ((b #f)) (set! b (curlet)) (curlet)): #1=#<let 'b #1#>
    */
   if (use_write == P_READABLE)
     {
@@ -33957,7 +33957,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 	    port_write_string(port)(sc, "(immutable! ", 12, port);
 
 	  /* this ignores outlet -- but is that a problem? */
-	  /* (object->string (let ((i 0)) (set! (setter 'i) integer?) (curlet)) :readable) -> "(let ((i 0)) (set! (setter 'i) #_integer?) (curlet))" */
+	  /* (object->string (% ((i 0)) (set! (setter 'i) integer?) (curlet)) :readable) -> "(let ((i 0)) (set! (setter 'i) #_integer?) (curlet))" */
 	  if (let_has_setter(obj))
 	    {
 	      port_write_string(port)(sc, "(let (", 6, port);
@@ -34324,7 +34324,7 @@ static void write_closure_readably(s7_scheme *sc, s7_pointer obj, s7_pointer por
 	      port_write_character(port)(sc, '(', port);
 	      port_write_string(port)(sc, symbol_name(slot_symbol(slot)), symbol_name_length(slot_symbol(slot)), port);
 	      port_write_character(port)(sc, ' ', port);
-	      /* (object->string (list (let ((local 1)) (^ (x) (+ x local)))) :readable) */
+	      /* (object->string (list (% ((local 1)) (^ (x) (+ x local)))) :readable) */
 	      object_to_port(sc, slot_value(slot), port, P_READABLE, NULL);
 	      if (is_null(cdr(x)))
 		port_write_character(port)(sc, ')', port);
@@ -34334,7 +34334,7 @@ static void write_closure_readably(s7_scheme *sc, s7_pointer obj, s7_pointer por
     }
 
   /* now we need to know if obj is in the closure_let via letrec, and if so, send out letrec+obj name+def below, then close it with obj-name??
-   *  the two cases are: (let ((f (^ () f)))...) which is ok now, and (letrec ((f (^ () f)))...) which needs the letrec
+   *  the two cases are: (% ((f (^ () f)))...) which is ok now, and (letrec ((f (^ () f)))...) which needs the letrec
    */
   if (!is_null(local_slots))
     for (s7_pointer x = local_slots; is_pair(x); x = cdr(x))
@@ -36102,7 +36102,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 			    i += 2;
 			    if (i >= str_len)            /* (format #f "~,'") */
 			      format_error_nr(sc, "incomplete numeric argument", 27, str, args, fdat);
-			  }}  /* is (let ((str "~12,'xD")) (set! (str 5) #\null) (format #f str 1)) an error? */
+			  }}  /* is (% ((str "~12,'xD")) (set! (str 5) #\null) (format #f str 1)) an error? */
 
 		switch (str[i])
 		  {
@@ -36200,7 +36200,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 		      format_error_nr(sc, "~~D: missing argument", 21, str, args, fdat);
 		    if (!(is_number(car(fdat->args))))
 		      {
-			/* (let () (require mockery.scm) (format #f "~D" ((*mock-number* 'mock-number) 123)))
+			/* (% () (require mockery.scm) (format #f "~D" ((*mock-number* 'mock-number) 123)))
 			 *    port here is a string-port, str has the width/precision data if the caller wants it,
 			 *    args is the current arg.  But format_number handles fdat->args and so on, so
 			 *    I think I'll pass the format method the current control string (str), the
@@ -37335,7 +37335,7 @@ static s7_pointer g_list_ref(s7_scheme *sc, s7_pointer args)
 {
   #define H_list_ref "(list-ref lst i ...) returns the i-th element (0-based) of the list"
   #define Q_list_ref s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_pair_symbol, sc->is_integer_symbol)
-  /* (let ((L '((1 2 3) (4 5 6)))) (list-ref L 1 2)) */
+  /* (% ((L '((1 2 3) (4 5 6)))) (list-ref L 1 2)) */
 
   s7_pointer lst = car(args);
   if (!is_pair(lst))
@@ -37443,7 +37443,7 @@ static s7_pointer g_list_set_1(s7_scheme *sc, s7_pointer lst, s7_pointer args, i
 
   s7_int index;
   s7_pointer p = lst, ind;
-  /* (let ((L '((1 2 3) (4 5 6)))) (list-set! L 1 2 32) L) */
+  /* (% ((L '((1 2 3) (4 5 6)))) (list-set! L 1 2 32) L) */
 
   if (!is_mutable_pair(lst))
     return(mutable_method_or_bust(sc, lst, sc->list_set_symbol, set_ulist_1(sc, lst, args), sc->type_names[T_PAIR], 1));
@@ -39612,7 +39612,7 @@ static s7_pointer g_vector_fill_1(s7_scheme *sc, s7_pointer caller, s7_pointer a
     {
       check_method(sc, x, sc->vector_fill_symbol, args);
       /* not two_methods (and fill!) here else we get stuff like:
-       *   (let ((e (openlet (inlet 'fill! (^ (obj val) (string-fill! (obj 'value) val)) 'value "01234")))) (vector-fill! e #\a) (e 'value)) -> "aaaaa"
+       *   (% ((e (openlet (inlet 'fill! (^ (obj val) (string-fill! (obj 'value) val)) 'value "01234")))) (vector-fill! e #\a) (e 'value)) -> "aaaaa"
        */
       wrong_type_error_nr(sc, caller, 1, x, sc->type_names[T_VECTOR]);
     }
@@ -40344,8 +40344,8 @@ static s7_pointer g_subvector(s7_scheme *sc, s7_pointer args)
 a vector that points to the same elements as the original-vector but with different starting point, end point, and dimensional info."
   #define Q_subvector s7_make_signature(sc, 5, sc->is_subvector_symbol, sc->is_vector_symbol, sc->is_integer_symbol, sc->is_integer_symbol, sc->is_pair_symbol)
 
-  /* (let ((v1 #2d((1 2 3) (4 5 6)))) (let ((v2 (subvector v1 0 6))) v2)) -> #(1 2 3 4 5 6)
-   * (let ((v1 #(1 2 3 4 5 6))) (let ((v2 (subvector v1 0 6 '(3 2)))) v2)) -> #2D((1 2) (3 4) (5 6))
+  /* (% ((v1 #2d((1 2 3) (4 5 6)))) (% ((v2 (subvector v1 0 6))) v2)) -> #(1 2 3 4 5 6)
+   * (% ((v1 #(1 2 3 4 5 6))) (% ((v2 (subvector v1 0 6 '(3 2)))) v2)) -> #2D((1 2) (3 4) (5 6))
    */
   s7_pointer orig = car(args), x;
   vdims_t *v = NULL;
@@ -40470,7 +40470,7 @@ static s7_pointer vector_ref_1(s7_scheme *sc, s7_pointer vect, s7_pointer indice
   else
     {
       s7_pointer p = car(indices);
-      /* (let ((hi (make-vector 3 0.0)) (sum 0.0)) (do ((i 0 (+ i 1))) ((= i 3)) (set! sum (+ sum (hi i)))) sum) */
+      /* (% ((hi (make-vector 3 0.0)) (sum 0.0)) (do ((i 0 (+ i 1))) ((= i 3)) (set! sum (+ sum (hi i)))) sum) */
 
       if (!s7_is_integer(p))
 	return(method_or_bust(sc, p, sc->vector_ref_symbol, set_ulist_1(sc, vect, indices), sc->type_names[T_INTEGER], 2));
@@ -40479,7 +40479,7 @@ static s7_pointer vector_ref_1(s7_scheme *sc, s7_pointer vect, s7_pointer indice
       if ((index < 0) || (index >= vector_length(vect)))
 	out_of_range_error_nr(sc, sc->vector_ref_symbol, int_two, p, (index < 0) ? it_is_negative_string : it_is_too_large_string);
 
-      if (is_not_null(cdr(indices)))                /* (let ((L #(#(1 2 3) #(4 5 6)))) (vector-ref L 1 2)) */
+      if (is_not_null(cdr(indices)))                /* (% ((L #(#(1 2 3) #(4 5 6)))) (vector-ref L 1 2)) */
 	{
 	  s7_pointer nv;
 	  if (!is_normal_vector(vect))
@@ -45274,7 +45274,7 @@ static s7_pointer g_funclet(s7_scheme *sc, s7_pointer args)
 
 /* -------------------------------- s7_define_function and friends --------------------------------
  *
- * all c_func* are semipermanent, but they might be local: (let () (load "libm.scm" (curlet)) ...)
+ * all c_func* are semipermanent, but they might be local: (% () (load "libm.scm" (curlet)) ...)
  *   but there's no way to tell in general that the let is not exported.
  */
 s7_pointer s7_define_function(s7_scheme *sc, const char *name, s7_function fnc,
@@ -45565,7 +45565,7 @@ static s7_pointer g_documentation(s7_scheme *sc, s7_pointer args)
       if ((is_pair(func)) && (is_string(car(func))))
 	return(car(func));
     }
-  /* it would be neat if this would work (: x (let ((+documentation+ "hio")) (vector 1 2 3))) (documentation x) */
+  /* it would be neat if this would work (: x (% ((+documentation+ "hio")) (vector 1 2 3))) (documentation x) */
   check_method(sc, p, sc->documentation_symbol, args);
   return(s7_make_string(sc, s7_documentation(sc, p)));
 }
@@ -45827,7 +45827,7 @@ each a function of no arguments, guaranteeing that finish is called even if body
     return(method_or_bust(sc, caddr(args), sc->dynamic_wind_symbol, args, wrap_string(sc, "a thunk or #f", 13), 3));
 
   /* this won't work:
-       (let ((final (^ (a b c) (list a b c))))
+       (% ((final (^ (a b c) (list a b c))))
          (dynamic-wind
            (^ () #f)
            (^ () (set! final (^ () (display "in final"))))
@@ -46787,7 +46787,7 @@ static s7_pointer symbol_set_setter(s7_scheme *sc, s7_pointer sym, s7_pointer ar
 
   if (is_pair(cddr(args)))
     {
-      s7_pointer e = cadr(args); /* (let ((x 1)) (set! (setter 'x (curlet)) (^ (s v e) ...))) */
+      s7_pointer e = cadr(args); /* (% ((x 1)) (set! (setter 'x (curlet)) (^ (s v e) ...))) */
       func = caddr(args);
       if ((e == sc->rootlet) || (e == sc->nil))
 	slot = global_slot(sym);
@@ -46912,7 +46912,7 @@ s7_pointer s7_set_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
   return(g_set_setter(sc, set_plist_2(sc, p, setter)));
 }
 
-/* (let () (: xxx 23) (: (hix) (set! xxx 24)) (hix) (set! (setter 'xxx) (^ (sym val) (format *stderr* "val: ~A~%" val) val)) (hix))
+/* (% () (: xxx 23) (: (hix) (set! xxx 24)) (hix) (set! (setter 'xxx) (^ (sym val) (format *stderr* "val: ~A~%" val) val)) (hix))
  *    so set setter before use!
  */
 
@@ -46993,7 +46993,7 @@ bool s7_is_eqv(s7_scheme *sc, s7_pointer a, s7_pointer b)
 #endif
   if (type(a) != type(b)) return(false);
   if ((a == b) && (!is_number(a)))         /* if a is NaN, a == b doesn't mean (eqv? a b) */
-    return(true);                          /* a == b means (let ((x "a")) (let ((y x)) (eqv? x y))) is #t */
+    return(true);                          /* a == b means (% ((x "a")) (% ((y x)) (eqv? x y))) is #t */
   if (is_number(a)) return(numbers_are_eqv(sc, a, b));
   if (is_unspecified(a)) return(true);     /* types are the same so we know b is also unspecified */
   return(false);
@@ -49295,7 +49295,7 @@ s7_pointer s7_reverse(s7_scheme *sc, s7_pointer a) /* just pairs */
 }
 
 /* s7_reverse sometimes tacks extra nodes on the end of a reversed circular list (it detects the cycle too late)
- *  (let ((lst (list 0))) (set! (cdr lst) lst) (reverse lst)) -> (#1=(0 . #1#) 0 0 0)
+ *  (% ((lst (list 0))) (set! (cdr lst) lst) (reverse lst)) -> (#1=(0 . #1#) 0 0 0)
  */
 
 static s7_pointer string_reverse(s7_scheme *sc, s7_pointer p)
@@ -50295,7 +50295,7 @@ static s7_pointer iterator_to_let(s7_scheme *sc, s7_pointer obj)
 static s7_pointer let_to_let(s7_scheme *sc, s7_pointer obj)
 {
   /* how to handle setters?
-   *   (display (let ((e (let ((i 0)) (set! (setter 'i) integer?) (curlet)))) (object->let e))):
+   *   (display (% ((e (% ((i 0)) (set! (setter 'i) integer?) (curlet)))) (object->let e))):
    *   "(inlet 'value (inlet 'i 0) 'type let? 'length 1 'open #f 'outlet () 'immutable? #f)"
    */
   s7_pointer let;
@@ -51487,7 +51487,7 @@ static bool catch_all_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_poin
 static bool catch_2_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_pointer info, bool *reset_hook)
 {
   /* this is the macro-error-handler case from g_catch
-   *    (let () (define-macro (m . args) (apply (car args) (cadr args))) (catch #t (^ () (error abs -1)) m))
+   *    (% () (define-macro (m . args) (apply (car args) (cadr args))) (catch #t (^ () (error abs -1)) m))
    */
   s7_pointer x = T_Cat(stack_code(sc->stack, i));
   if (SHOW_EVAL_OPS) fprintf(stderr, "catcher: %s\n", __func__);
@@ -52622,8 +52622,8 @@ static s7_pointer implicit_index_checked(s7_scheme *sc, s7_pointer obj, s7_point
 
 static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indices)
 {
-  /* (let ((lst '("12" "34"))) (lst 0 1)) -> #\2
-   * (let ((lst (list #(1 2) #(3 4)))) (lst 0 1)) -> 2
+  /* (% ((lst '("12" "34"))) (lst 0 1)) -> #\2
+   * (% ((lst (list #(1 2) #(3 4)))) (lst 0 1)) -> 2
    * this can get tricky: ((list (^ (a) (+ a 1)) (^ (b) (* b 2))) 1 2) -> 4
    * but what if func takes rest/optional args, etc: ((list (^ args (car args))) 0 "hi" 0)
    *   should this return #\h or "hi"?? currently it is "hi" which is consistent with ((^ args (car args)) "hi" 0)
@@ -52958,12 +52958,12 @@ s7_pointer s7_eval_with_location(s7_scheme *sc, s7_pointer code, s7_pointer e, c
 
 static s7_pointer g_eval(s7_scheme *sc, s7_pointer args)
 {
-  #define H_eval "(eval code (let (curlet))) evaluates code in the environment let. 'let' \
+  #define H_eval "(eval code (% (curlet))) evaluates code in the environment let. 'let' \
 defaults to the curlet; to evaluate something in the top-level environment instead, \
 pass (rootlet):\n\
 \n\
   (: x 32) \n\
-  (let ((x 3))\n\
+  (% ((x 3))\n\
     (eval 'x (rootlet)))\n\
 \n\
   returns 32"
@@ -56523,7 +56523,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer cur_en
 		  return(fx_is_type_s);
 		}
 	      /* car_p_p (et al) does not look for a method so in:
-	       *    (: kar car) (load "mockery.scm") (let ((p (mock-pair '(1 2 3)))) (call-with-exit (^ (x) (x (kar p)))))
+	       *    (: kar car) (load "mockery.scm") (% ((p (mock-pair '(1 2 3)))) (call-with-exit (^ (x) (x (kar p)))))
 	       *  "kar" fails but not "car" because symbol_id(kar) == 0!  symbol_id(car) > 0 because mockery provides a method for it.
 	       */
 	      if (symbol_id(c_function_name_to_symbol(sc, global_value(car(arg)))) == 0)
@@ -57938,7 +57938,7 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointer 
       (is_definer_or_binder(car(tree))))
     {
       if ((car(tree) == sc->let_symbol) && (is_pair(cdr(tree))) && (is_pair(cadr(tree))) &&
-	  (is_null(cdadr(tree))) && (is_pair(caadr(tree)))) /* (let (a) ...) */
+	  (is_null(cdadr(tree))) && (is_pair(caadr(tree)))) /* (% (a) ...) */
 	fx_tree(sc, cddr(tree), caaadr(tree), NULL, NULL, more_vars);
       return;
     }
@@ -65487,7 +65487,7 @@ static s7_pointer opt_do_any(opt_info *o)
 	if (len == 7)
 	  {fp[0](os[0]); fp[1](os[1]); fp[2](os[2]); fp[3](os[3]); fp[4](os[4]); fp[5](os[5]); fp[6](os[6]);}
 	else for (i = 0; i < len; i++) fp[i](os[i]);
-      /* step (let not let*) */
+      /* step (% not let*) */
       for (k = 0, vp = let_slots(sc->curlet); tis_slot(vp); k++, vp = next_slot(vp))
 	if (has_stepper(vp))
 	  {
@@ -68361,7 +68361,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
 
     case OP_ANY_C_NP_MV: case OP_ANY_CLOSURE_NP_MV:
     FP_MV:
-      if ((is_immutable(args)) || /* (let () (: (func) (with-output-to-string (^ () (apply-values (write '(1 2)))))) (func) (func)) */
+      if ((is_immutable(args)) || /* (% () (: (func) (with-output-to-string (^ () (apply-values (write '(1 2)))))) (func) (func)) */
 	  (needs_copied_args(args)))
 	{
 	  clear_needs_copied_args(args);
@@ -68445,15 +68445,15 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
     case OP_SET_opSAq_P_1: case OP_SET_opSAAq_P_1:
       syntax_error_nr(sc, "too many arguments to set! ~S", 29, set_ulist_1(sc, sc->values_symbol, args));
 
-    case OP_LET1:                         /* (let ((var (values 1 2 3))) ...) */
+    case OP_LET1:                         /* (% ((var (values 1 2 3))) ...) */
       {
 	s7_pointer let_code, vars, sym, p = stack_args(sc->stack, top);
 	for (let_code = p; is_pair(cdr(let_code)); let_code = cdr(let_code));
 	for (vars = caar(let_code); is_pair(cdr(p)); p = cdr(p), vars = cdr(vars));
 	sym = caar(vars);
 	syntax_error_with_caller2_nr(sc, "~A: can't bind ~A to ~S", 23, sc->let_symbol, sym, set_ulist_1(sc, sc->values_symbol, args));
-	/* stack_args: ((((x (values 1 2))) x)) in (let ((x (values 1 2))) x)
-	 *             (1 (((x 1) (y (values 1 2))) x)) in (let ((x 1) (y (values 1 2))) x)
+	/* stack_args: ((((x (values 1 2))) x)) in (% ((x (values 1 2))) x)
+	 *             (1 (((x 1) (y (values 1 2))) x)) in (% ((x 1) (y (values 1 2))) x)
 	 */
       }
 
@@ -68525,9 +68525,9 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
     case OP_SIMPLE_DO_STEP: case OP_DOX_STEP_O: case OP_DOX_STEP:
       /* here we have a values call with nothing to splice into.  So flush it...
        *   otherwise the multiple-values bit gets set in some innocent list and never unset:
-       *     (let ((x '((1 2)))) (eval `(apply apply values x)) x) -> ((values 1 2))
+       *     (% ((x '((1 2)))) (eval `(apply apply values x)) x) -> ((values 1 2))
        * other cases: (+ 1 (begin (values 5 6) (values 2 3)) 4) -> 10 -- the (5 6) is dropped
-       *              (let () (values 1 2 3) 4) but (+ (let () (values 1 2))) -> 3
+       *              (% () (values 1 2 3) 4) but (+ (% () (values 1 2))) -> 3
        */
       return(args);
 
@@ -68584,7 +68584,7 @@ s7_pointer s7_values(s7_scheme *sc, s7_pointer args)
   #define H_values "(values obj ...) splices its arguments into whatever list holds it (its 'continuation')"
   #define Q_values s7_make_circular_signature(sc, 1, 2, sc->values_symbol, sc->T)
 
-  if (is_null(args))         /* ((^ () (let ((x 1)) (set! x (boolean? (values)))))) */
+  if (is_null(args))         /* ((^ () (% ((x 1)) (set! x (boolean? (values)))))) */
     return(sc->no_value);
   if (is_null(cdr(args)))
     return(car(args));
@@ -68718,7 +68718,7 @@ static s7_pointer g_apply_values(s7_scheme *sc, s7_pointer args)
  *   (define-macro (hi a) `(+ 1 ,@a) == (list '+ 1 (apply values a))
  *
  * this is not the same as CL's quasiquote; for example:
- *   [1]> (let ((a 1) (b 2)) `(,a ,@b)) -> '(1 . 2) but in s7 this is an error.
+ *   [1]> (% ((a 1) (b 2)) `(,a ,@b)) -> '(1 . 2) but in s7 this is an error.
  * also in CL the target of ,@ can apparently be a circular list
  * one surprising twist: write/display return their first argument directly, so (apply-values (write `(+ x 1))) is the same as (apply-values `(+ x 1))
  */
@@ -69374,7 +69374,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	      (is_procedure(sc->unbound_variable_hook)) &&
 	      (hook_has_functions(sc->unbound_variable_hook)))
 	    {
-	      /* (let () (set! (hook-functions *unbound-variable-hook*) (list (^ (v) _asdf_))) _asdf_) */
+	      /* (% () (set! (hook-functions *unbound-variable-hook*) (list (^ (v) _asdf_))) _asdf_) */
 	      s7_pointer old_hook = sc->unbound_variable_hook;
 	      bool old_history_enabled = s7_set_history_enabled(sc, false);
 	      gc_protect_via_stack(sc, old_hook);
@@ -69740,7 +69740,7 @@ static inline s7_pointer find_uncomplicated_symbol(s7_scheme *sc, s7_pointer sym
       (direct_memq(symbol, e)))   /* it's probably a local variable reference */
     return(sc->nil);
   /* ((!symbol_is_in_list(sc, symbol)) && (direct_memq(symbol, e))) can happen if there's an intervening lambda:
-   *   (let loop () (with-let (for-each (^ (a) a) (list))) (loop))
+   *   (% loop () (with-let (for-each (^ (a) a) (list))) (loop))
    * misses 'loop (it's not in symbol_list when recursive call is encountered) -- tricky to fix
    */
 
@@ -69859,7 +69859,7 @@ static opt_t optimize_c_function_one_arg(s7_scheme *sc, s7_pointer expr, s7_poin
 	{
 	  s7_pointer lambda_expr = arg1;
 	  if ((is_ok_lambda(sc, lambda_expr)) &&
-	      (!direct_memq(car(lambda_expr), e)))            /* (let ((^ #f)) (call-with-exit (^ ...))) */
+	      (!direct_memq(car(lambda_expr), e)))            /* (% ((^ #f)) (call-with-exit (^ ...))) */
 	    {
 	      if (((c_function_call(func) == g_call_with_exit) ||
 		   (c_function_call(func) == g_call_cc) ||
@@ -70913,7 +70913,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
   if (is_closure_star(func))
     {
       if (!closure_star_is_aritable(sc, func, closure_args(func), 1)) /* not 2, cadr(expr) might be keyword or pair->keyword etc */
-	return(OPT_OOPS);                                             /* (let* cons () (^* (a . b) (cons a b))) so closure_args=(), arity=0 ?? */
+	return(OPT_OOPS);                                             /* (%* cons () (^* (a . b) (cons a b))) so closure_args=(), arity=0 ?? */
       if (is_immutable(func)) hop = 1;
       if (fx_count(sc, expr) == 2)
 	{
@@ -71604,7 +71604,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
     case OP_LET_STAR: case OP_LETREC_STAR:
       if (is_symbol(cadr(expr)))
 	{
-	  if (!is_pair(cddr(expr))) /* (let name . x) */
+	  if (!is_pair(cddr(expr))) /* (% name . x) */
 	    return(OPT_F);
 	  vars = caddr(expr);
 	  if (!is_list(vars)) return(OPT_OOPS);
@@ -71821,14 +71821,14 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 
     case OP_WITH_LET:
       /* we usually can't trust anything here, so hop ought to be off.  For example,
-       *   (: (hi) (let ((e (sublet (curlet) :abs (^ (a) (- a 1))))) (with-let e (abs -1))))
+       *   (: (hi) (% ((e (sublet (curlet) :abs (^ (a) (- a 1))))) (with-let e (abs -1))))
        * returns 1 if hop is 1, but -2 otherwise.  (with-let (unlet)...) is safe however.
        */
       {
 	bool old_with_let = sc->in_with_let;
 	sc->in_with_let = (old_with_let) || (!is_pair(body)) || (!is_pair(car(body))) ||
 	                  ((caar(body) != sc->unlet_symbol) && /* (caar(body) != sc->rootlet_symbol) && */ (caar(body) != sc->curlet_symbol));
-	/* not rootlet here: (let ((i 0)) (_rd3_ (with-let (rootlet) ((null? i) i)))) */
+	/* not rootlet here: (% ((i 0)) (_rd3_ (with-let (rootlet) ((null? i) i)))) */
 	for (s7_pointer p = body; is_pair(p); p = cdr(p))
 	  if ((is_pair(car(p))) &&
 	      (!is_checked(car(p))) &&
@@ -72158,8 +72158,8 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 		  (!is_immutable(car_expr)) && /* list|apply-values -- can't depend on opt1 here because it might not be global, or might be redefined locally */
 		  (!is_immutable_slot(slot)))       /* (define-constant...) */
 		{
-		  /* (let () (: (f2 a) (+ a 1)) (: (f1 a) (f2 a)) (: (f2 a) (- a)) (f1 12))
-		   * (let () (: (f2 a) (+ a 1)) (: (f1 a) (f2 a)) (: (f2 a) (- a 1)) (f1 12))
+		  /* (% () (: (f2 a) (+ a 1)) (: (f1 a) (f2 a)) (: (f2 a) (- a)) (f1 12))
+		   * (% () (: (f2 a) (+ a 1)) (: (f1 a) (f2 a)) (: (f2 a) (- a 1)) (f1 12))
 		   * and similar define* cases
 		   */
 		  hop = 0;
@@ -72642,7 +72642,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	  }
 
 	case OP_SET:
-	  /* if we set func, we have to abandon the tail call scan: (let () (: (hi a) (let ((v (vector 1 2 3))) (set! hi v) (hi a))) (hi 1)) */
+	  /* if we set func, we have to abandon the tail call scan: (% () (: (hi a) (% ((v (vector 1 2 3))) (set! hi v) (hi a))) (hi 1)) */
 	  if (!is_pair(cddr(x))) return(UNSAFE_BODY);
 	  if (cadr(x) == func) return(UNSAFE_BODY);
 
@@ -72681,7 +72681,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	    s7_pointer let_name, sp, vars = cadr(x), body = cddr(x);
 	    if (is_symbol(vars))
 	      {
-		if (!is_pair(body)) return(UNSAFE_BODY);        /* (let name . res) */
+		if (!is_pair(body)) return(UNSAFE_BODY);        /* (% name . res) */
 		if (vars == func) return(UNSAFE_BODY);          /* named let shadows caller */
 		let_name = vars;
 		vars = caddr(x);
@@ -72762,8 +72762,8 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	default:
 	  /* OP_LAMBDA is major case here */
 	  /* try to catch weird cases like:
-	   * (let () (: (hi1 a) (: (hi1 b) (+ b 1)) (hi1 a)) (hi1 1))
-	   * (let () (: (hi1 a) (: (ho1 b) b) (: (hi1 b) (+ b 1)) (hi1 a)) (hi1 1))
+	   * (% () (: (hi1 a) (: (hi1 b) (+ b 1)) (hi1 a)) (hi1 1))
+	   * (% () (: (hi1 a) (: (ho1 b) b) (: (hi1 b) (+ b 1)) (hi1 a)) (hi1 1))
 	   */
 	  return(UNSAFE_BODY);
 	}}
@@ -73599,7 +73599,7 @@ static bool check_tc_cond(s7_scheme *sc, s7_pointer name, int32_t vars, s7_point
 
 static bool check_tc_let(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer args, s7_pointer body)
 {
-  s7_pointer let_body = caddr(body); /* body: (let ((x (- y 1))) (? (<= x 0) 0 (f1 (- x 1)))) etc */
+  s7_pointer let_body = caddr(body); /* body: (% ((x (- y 1))) (? (<= x 0) 0 (f1 (- x 1)))) etc */
   if (((vars == 2) && ((car(let_body) == sc->if_symbol) || (car(let_body) == sc->when_symbol) || (car(let_body) == sc->unless_symbol))) ||
       ((vars == 1) && (car(let_body) == sc->if_symbol)))
     {
@@ -74216,11 +74216,11 @@ static int32_t check_lambda(s7_scheme *sc, s7_pointer form, bool opt)
   check_lambda_args(sc, car(code), &arity, sc->code);
   /* clear_symbol_list(sc); */ /* not used in check_lambda_args and clobbers optimize_expression find_uncomplicated_symbol check */
 
-  /* look for (: f (let (...) (^ ...))) and treat as equivalent to (: (f ...)...)
+  /* look for (: f (% (...) (^ ...))) and treat as equivalent to (: (f ...)...)
    *   one problem the hop=0 fixes is that safe closures assume the old let exists, so we need to check for define below
    *   I wonder about apply define...
    */
-  /* OP_LET1 should work here also, (let ((f (lambda...)))), but subsequent calls assume a saved let if safe
+  /* OP_LET1 should work here also, (% ((f (lambda...)))), but subsequent calls assume a saved let if safe
    *   to mimic define, we need to parallel op_define_with_setter + make_funclet, I think
    */
   if ((opt) ||
@@ -74851,7 +74851,7 @@ static s7_pointer check_named_let(s7_scheme *sc, int32_t vars)
     {
       bool fx_ok = true;
       pair_set_syntax_op(sc->code, OP_NAMED_LET);
-      /* this is (let name ...) so the initial values need to be removed from the closure arg list */
+      /* this is (% name ...) so the initial values need to be removed from the closure arg list */
 
       sc->args = T_Pair(safe_list_if_possible(sc, vars));
       for (s7_pointer ex = cadr(code), exp = sc->args; is_pair(ex); ex = cdr(ex), exp = cdr(exp))
@@ -74880,26 +74880,26 @@ static s7_pointer check_let(s7_scheme *sc) /* called only from op_let */
   bool named_let;
   int32_t vars;
 
-  if (!is_pair(code))               /* (let . 1) */
+  if (!is_pair(code))               /* (% . 1) */
     {
       if (is_null(code))            /* (let) */
 	syntax_error_nr(sc, "let has no variables or body: ~A", 32, form);
       syntax_error_nr(sc, "let form is an improper list? ~A", 32, form);
     }
 
-  if (!is_pair(cdr(code)))          /* (let () ) or (let () . 1) */
+  if (!is_pair(cdr(code)))          /* (% () ) or (% () . 1) */
     syntax_error_nr(sc, "let has no body: ~A", 19, form);
 
-  if ((!is_list(car(code))) &&      /* (let 1 ...) */
+  if ((!is_list(car(code))) &&      /* (% 1 ...) */
       (!is_normal_symbol(car(code))))
     syntax_error_nr(sc, "let variable list is messed up or missing: ~A", 45, form);
 
   named_let = (is_symbol(car(code)));
   if (named_let)
     {
-      if (!is_list(cadr(code)))             /* (let hi #t) */
+      if (!is_list(cadr(code)))             /* (% hi #t) */
 	syntax_error_nr(sc, "let variable list is messed up: ~A", 34, form);
-      if (!is_pair(cddr(code)))             /* (let hi () . =>) or (let hi () ) */
+      if (!is_pair(cddr(code)))             /* (% hi () . =>) or (% hi () ) */
 	{
 	  if (is_null(cddr(code)))
 	    syntax_error_nr(sc, "named let has no body: ~A", 25 , form);
@@ -74917,17 +74917,17 @@ static s7_pointer check_let(s7_scheme *sc) /* called only from op_let */
     {
       s7_pointer y, carx = car(x);
 
-      if ((!is_pair(carx)) || (is_null(cdr(carx))))  /* (let ((x)) ...) or (let ((x 1) . (y 2)) ...) */
+      if ((!is_pair(carx)) || (is_null(cdr(carx))))  /* (% ((x)) ...) or (% ((x 1) . (y 2)) ...) */
 	error_nr(sc, sc->syntax_error_symbol,
 		 set_elist_3(sc, wrap_string(sc, "let variable declaration, but no value?: ~A in ~A", 49),
 			     x, object_to_truncated_string(sc, form, 80)));
 
-      if (!(is_pair(cdr(carx))))                     /* (let ((x . 1))...) */
+      if (!(is_pair(cdr(carx))))                     /* (% ((x . 1))...) */
 	error_nr(sc, sc->syntax_error_symbol,
 		 set_elist_3(sc, wrap_string(sc, "let variable declaration, ~A, is not a proper list in ~A", 56),
 			     x, object_to_truncated_string(sc, form, 80)));
 
-      if (is_not_null(cddr(carx)))                   /* (let ((x 1 2 3)) ...) */
+      if (is_not_null(cddr(carx)))                   /* (% ((x 1 2 3)) ...) */
 	error_nr(sc, sc->syntax_error_symbol,
 		 set_elist_3(sc, wrap_string(sc, "let variable declaration, ~A, has more than one value in ~A", 59),
 			     x, object_to_truncated_string(sc, form, 80)));
@@ -74947,12 +74947,12 @@ static s7_pointer check_let(s7_scheme *sc) /* called only from op_let */
       add_symbol_to_list(sc, y);
       set_local(y);
     }
-  /* (let ('1) quote) -> 1 */
+  /* (% ('1) quote) -> 1 */
 
-  if (is_not_null(x))                     /* (let* ((a 1) . b) a) */
+  if (is_not_null(x))                     /* (%* ((a 1) . b) a) */
     syntax_error_nr(sc, "let variable list improper?: ~A", 31, form);
 
-  if (!s7_is_proper_list(sc, cdr(code))) /* (let ((a 1)) a . 1) */
+  if (!s7_is_proper_list(sc, cdr(code))) /* (% ((a 1)) a . 1) */
     syntax_error_nr(sc, "stray dot in let body: ~S", 25, cdr(code));
 
   if (named_let)
@@ -75156,7 +75156,7 @@ static bool op_let1(s7_scheme *sc)
 
 static bool op_let(s7_scheme *sc)
 {
-  /* sc->code is everything after the let: (let ((a 1)) a) so sc->code is (((a 1)) a) */
+  /* sc->code is everything after the let: (% ((a 1)) a) so sc->code is (((a 1)) a) */
   /*   car can be either a list or a symbol ("named let") */
   bool named_let;
 
@@ -75164,7 +75164,7 @@ static bool op_let(s7_scheme *sc)
   sc->value = sc->code;
   named_let = is_symbol(car(sc->code));
   sc->code = (named_let) ? cadr(sc->code) : car(sc->code);
-  if (is_null(sc->code))                    /* (let [name] () ...):  no bindings, so skip that step */
+  if (is_null(sc->code))                    /* (% [name] () ...):  no bindings, so skip that step */
     {
       sc->code = sc->value;
       sc->curlet = make_let(sc, sc->curlet);
@@ -75280,7 +75280,7 @@ static void op_let_one_new(s7_scheme *sc)
 {
   sc->code = cdr(sc->code);
   /* check_stack_size(sc) -- needed if we're in an infinite loop -- maybe let it trigger "stack too big" instead */
-  /*   e.g. (let ((set! let*)) (let* set! ((x 1234) (y 1/2)) (let ((<1> (list 1 #f))) (set! (<1> 1) ...)))) */
+  /*   e.g. (% ((set! let*)) (%* set! ((x 1234) (y 1/2)) (% ((<1> (list 1 #f))) (set! (<1> 1) ...)))) */
   push_stack_no_args(sc, OP_LET_ONE_NEW_1, cdr(sc->code));
   sc->code = opt2_pair(sc->code);
 }
@@ -75501,18 +75501,18 @@ static bool check_let_star(s7_scheme *sc)
   s7_pointer vars, form = sc->code, code = cdr(sc->code);
   bool named_let, fxable = true, shadowing = false;
 
-  if (!is_pair(code))                           /* (let* . 1) */
+  if (!is_pair(code))                           /* (%* . 1) */
     syntax_error_nr(sc, "let* variable list is messed up: ~A", 35, form);
-  if (!is_pair(cdr(code)))                      /* (let* ()) */
+  if (!is_pair(cdr(code)))                      /* (%* ()) */
     syntax_error_nr(sc, "let* has no body: ~A", 20, form);
 
   named_let = (is_symbol(car(code)));
 
   if (named_let)
     {
-      if (!is_list(cadr(code)))                 /* (let* hi #t) */
+      if (!is_list(cadr(code)))                 /* (%* hi #t) */
 	syntax_error_nr(sc, "let* variable list is messed up: ~A", 35, form);
-      if (!is_pair(cddr(code)))                 /* (let* hi () . =>) or (let* hi () ) */
+      if (!is_pair(cddr(code)))                 /* (%* hi () . =>) or (%* hi () ) */
 	{
 	  if (is_null(cddr(code)))
 	    syntax_error_nr(sc, "named let* has no body: ~A", 26, form);
@@ -75523,19 +75523,19 @@ static bool check_let_star(s7_scheme *sc)
       set_local(car(code));
     }
   else
-    if (!is_list(car(code)))                        /* (let* x ... ) */
+    if (!is_list(car(code)))                        /* (%* x ... ) */
       syntax_error_nr(sc, "let* variable declaration value is missing: ~A", 46, form);
 
   clear_symbol_list(sc);
   for (vars = ((named_let) ? cadr(code) : car(code)); is_pair(vars); vars = cdr(vars))
     {
       s7_pointer var, var_and_val = car(vars);
-      if (!is_pair(var_and_val))                    /* (let* (3) ... */
+      if (!is_pair(var_and_val))                    /* (%* (3) ... */
 	error_nr(sc, sc->syntax_error_symbol,
 		 set_elist_3(sc, wrap_string(sc, "let* variable list, ~A, is messed up in ~A", 42),
 			     var_and_val, object_to_truncated_string(sc, form, 80)));
 
-      if (!(is_pair(cdr(var_and_val))))             /* (let* ((x . 1))...) */
+      if (!(is_pair(cdr(var_and_val))))             /* (%* ((x . 1))...) */
 	{
 	  if (is_null(cdr(var_and_val)))
 	    error_nr(sc, sc->syntax_error_symbol,
@@ -75545,25 +75545,25 @@ static bool check_let_star(s7_scheme *sc)
 		   set_elist_3(sc, wrap_string(sc, "let* variable declaration is not a proper list: ~A in ~A", 56),
 			       var_and_val, object_to_truncated_string(sc, form, 80)));
 	}
-      if (!is_null(cddr(var_and_val)))              /* (let* ((c 1 2)) ...) */
+      if (!is_null(cddr(var_and_val)))              /* (%* ((c 1 2)) ...) */
 	error_nr(sc, sc->syntax_error_symbol,
 		 set_elist_3(sc, wrap_string(sc, "let* variable declaration has more than one value?: ~A in ~A", 60),
 			     var_and_val, object_to_truncated_string(sc, form, 80)));
 
       var = car(var_and_val);
-      if (!(is_symbol(var)))                        /* (let* ((3 1)) 1) */
+      if (!(is_symbol(var)))                        /* (%* ((3 1)) 1) */
 	error_nr(sc, sc->syntax_error_symbol,
 		 set_elist_3(sc, wrap_string(sc, "bad variable, ~S, in let* (it is not a symbol): ~A", 50),
 			     var, object_to_truncated_string(sc, form, 80)));
 
-      if (is_constant_symbol(sc, var))              /* (let* ((pi 3)) ...) */
+      if (is_constant_symbol(sc, var))              /* (%* ((pi 3)) ...) */
 	error_nr(sc, sc->wrong_type_arg_symbol, set_elist_3(sc, cant_bind_immutable_string, sc->let_star_symbol, var_and_val));
 
-      if ((named_let) && (symbol_is_in_arg_list(var, cdr(vars)))) /* (let* loop ((a 1) (a 2)) ...) -- added 2-Dec-19 */
+      if ((named_let) && (symbol_is_in_arg_list(var, cdr(vars)))) /* (%* loop ((a 1) (a 2)) ...) -- added 2-Dec-19 */
 	error_nr(sc, sc->syntax_error_symbol,
 		 set_elist_3(sc, wrap_string(sc, "named let* parameter, ~A, is used twice in the parameter list in ~A", 67),
 			     var, object_to_truncated_string(sc, form, 80)));
-      /* currently (let* ((a 1) (a (+ a 1))) a) is 2, not an error */
+      /* currently (%* ((a 1) (a (+ a 1))) a) is 2, not an error */
 
       if (symbol_is_in_list(sc, var)) shadowing = true;
       add_symbol_to_list(sc, var);
@@ -75598,7 +75598,7 @@ static bool check_let_star(s7_scheme *sc)
 	  set_opt2_con(code, cadr(caadr(code)));
 	}
       sc->value = cdr(code);
-      if (is_null(car(sc->value)))                   /* (let* name () ... */
+      if (is_null(car(sc->value)))                   /* (%* name () ... */
 	{
 	  s7_pointer let_sym = car(code);
 	  sc->curlet = make_let(sc, sc->curlet);
@@ -75614,7 +75614,7 @@ static bool check_let_star(s7_scheme *sc)
     }
   if (is_null(car(code)))
     {
-      pair_set_syntax_op(form, OP_LET_NO_VARS);   /* (let* () ...) */
+      pair_set_syntax_op(form, OP_LET_NO_VARS);   /* (%* () ...) */
 
       sc->curlet = make_let(sc, sc->curlet);
       sc->code = T_Pair(cdr(code));
@@ -75623,7 +75623,7 @@ static bool check_let_star(s7_scheme *sc)
   else
     if (is_null(cdar(code)))
       {
-	check_let_one_var(sc, form, car(code));   /* (let* ((var...))...) -> (let ((var...))...) */
+	check_let_one_var(sc, form, car(code));   /* (%* ((var...))...) -> (% ((var...))...) */
 	if (optimize_op(form) >= OP_LET_NA_OLD)
 	  {
 	    if ((!in_heap(form)) &&
@@ -75718,7 +75718,7 @@ static inline bool op_let_star1(s7_scheme *sc)
     {
       s7_pointer name = car(sc->code), body = cddr(sc->code), args = cadr(sc->code);
       /* now we need to declare the new function (in the outer let) -- must delay this because init might reference same-name outer func */
-      /*   but the let name might be shadowed by a variable: (let* x ((x 1))...) so the name's symbol_id can be incorrect */
+      /*   but the let name might be shadowed by a variable: (%* x ((x 1))...) so the name's symbol_id can be incorrect */
       if (symbol_id(name) > let_id(let_outlet(sc->curlet)))
 	{
 	  s7_int cur_id = symbol_id(name);
@@ -77325,7 +77325,7 @@ static bool op_define_constant(s7_scheme *sc)
     }
   if ((is_symbol(car(code))) &&                /* (define-constant abs abs): "abs will not be touched" */
       (car(code) == cadr(code)) &&
-      (symbol_id(car(code)) == 0) &&           /* else (let iter ... (define-constant iter iter) ...) -> segfault on later calls */
+      (symbol_id(car(code)) == 0) &&           /* else (% iter ... (define-constant iter iter) ...) -> segfault on later calls */
       (is_null(cddr(code))))
     {
       s7_pointer sym = car(code);
@@ -77686,7 +77686,7 @@ static void op_eval_macro(s7_scheme *sc) /* after (scheme-side) macroexpansion, 
        *   happens now without generating a multiple_value object:
        *       (define-macro (hi) (values)) (hi) -> #<unspecified>
        *   (define-macro (ho) (values '(+ 1 2) '(* 3 4))) (+ 1 (ho) 3) -> 19
-       *   (define-macro (ha) (values '(: a 1) '(: b 2))) (let () (ha) (+ a b)) -> 3
+       *   (define-macro (ha) (values '(: a 1) '(: b 2))) (% () (ha) (+ a b)) -> 3
        */
       push_stack(sc, OP_EVAL_MACRO_MV, sc->nil, cdr(sc->value));
       sc->code = car(sc->value);
@@ -77768,7 +77768,7 @@ static s7_pointer fx_with_let_s(s7_scheme *sc, s7_pointer arg)
   val = let_ref(sc, e, sym); /* (with-let e s) -> (let-ref e s), "s" unevalled? */
   if (val == sc->undefined)
     {
-      if ((e == sc->s7_starlet) && (is_slot(global_slot(sym)))) /* (let () (: (func) (with-let *s7* letrec*)) (func) (func)), .5 tlet */
+      if ((e == sc->s7_starlet) && (is_slot(global_slot(sym)))) /* (% () (: (func) (with-let *s7* letrec*)) (func) (func)), .5 tlet */
 	return(global_value(sym));                              /* perhaps the e=*s7* check is not needed */
       unbound_variable_error_nr(sc, sym);
     }
@@ -78268,7 +78268,7 @@ static void check_set(s7_scheme *sc)
 		if (is_fxable(sc, index))
 		  {
 		    if ((car(inner) == sc->let_ref_symbol) && (!is_pair(cddr(inner)))) /* perhaps also check for hash-table-ref */
-		      /* (let () (: (func) (catch #t (^ () (set! (let-ref (list 1)) 1)) (^ args 'error))) (func) (func)) */
+		      /* (% () (: (func) (catch #t (^ () (set! (let-ref (list 1)) 1)) (^ args 'error))) (func) (func)) */
 		      error_nr(sc, sc->wrong_number_of_args_symbol,
 			       set_elist_2(sc, wrap_string(sc, "set!: not enough arguments for let-ref: ~S", 42), sc->code));
 		    fx_annotate_arg(sc, cdar(code), sc->curlet);    /* cdr(inner) -> index */
@@ -78499,7 +78499,7 @@ static void op_increment_sa(s7_scheme *sc)
 static noreturn void no_setter_error_nr(s7_scheme *sc, s7_pointer obj)
 {
   /* sc->code here is form without set!: ((abs 1) 2) from (set! (abs 1) 2)
-   *   but in implicit case, (let ((L (list 0))) (set! (L 0 0) 2)), code is ((0 0) 2)
+   *   but in implicit case, (% ((L (list 0))) (set! (L 0 0) 2)), code is ((0 0) 2)
    *   at entry to s7_error: ((0 0 2)??  but we print something from define-hook-function if in the repl
    *   add indices and new-value args, is unevaluated code always available?
    */
@@ -78704,8 +78704,8 @@ static inline bool op_set_opsaq_p(s7_scheme *sc)
   /* ([set!] (car a) (cadr a)) */
   /* here the pair can't generate multiple values, or if it does, it's an error (caught below)
    *  splice_in_values will notice the OP_SET_opSAq_P_1 and complain.
-   * (let () (: (hi) (let ((str "123")) (set! (str 0) (values #\a)) str)) (hi) (hi)) is "a23"
-   * (let ((v (make-vector '(2 3) 0))) (set! (v (values 0 1)) 23) v) -> #2D((0 23 0) (0 0 0))
+   * (% () (: (hi) (% ((str "123")) (set! (str 0) (values #\a)) str)) (hi) (hi)) is "a23"
+   * (% ((v (make-vector '(2 3) 0))) (set! (v (values 0 1)) 23) v) -> #2D((0 23 0) (0 0 0))
    */
   s7_pointer obj = lookup_checked(sc, caar(code));
   if (could_be_macro_setter(obj))
@@ -78794,7 +78794,7 @@ static bool set_pair4(s7_scheme *sc, s7_pointer obj, s7_pointer index1, s7_point
       sc->args = (needs_copied_args(sc->code)) ? list_3(sc, index1, index2, value) : set_plist_3(sc, index1, index2, value);
       return(true); /* goto APPLY; not redundant -- setter type might not match getter type */
 
-    case T_C_MACRO: /* (set! (setter quasiquote) (^ (a . b) a)) (let () (: (func) (set! (quasiquote 'a 0) 3)) (func) (func)) */
+    case T_C_MACRO: /* (set! (setter quasiquote) (^ (a . b) a)) (% () (: (func) (set! (quasiquote 'a 0) 3)) (func) (func)) */
       if (is_c_function(c_macro_setter(obj)))
 	return(pair4_cfunc(sc, obj, c_macro_setter(obj), index1, index2, value));
       sc->code = c_macro_setter(obj);
@@ -78934,7 +78934,7 @@ static bool op_set_with_let_1(s7_scheme *sc)
 	}
       sc->value = lookup_checked(sc, e);
       sc->code = set_plist_3(sc, sc->set_symbol, b, ((is_symbol(x)) || (is_pair(x))) ? set_plist_2(sc, sc->quote_symbol, x) : x);
-      /* (let* ((x (vector 1 2)) (lt (curlet))) (set! (with-let lt (x 0)) 32) x) here: (set! (x 0) 32) */
+      /* (%* ((x (vector 1 2)) (lt (curlet))) (set! (with-let lt (x 0)) 32) x) here: (set! (x 0) 32) */
       return(false); /* goto SET_WITH_LET */
     }
   sc->code = e;                            /* 'e above, an expression we need to evaluate */
@@ -79156,7 +79156,7 @@ static goto_t set_implicit_vector(s7_scheme *sc, s7_pointer vect, s7_pointer ind
       (argnum != vector_rank(vect)))
     {
       /* this block needs to be first to handle (eg):
-       *   (let ((v (vector (inlet 'a 0)))) (set! (v 0 'a) 32) v): #((inlet 'a 32))
+       *   (% ((v (vector (inlet 'a 0)))) (set! (v 0 'a) 32) v): #((inlet 'a 32))
        *   sc->code here: ((v 0 'a) 32)
        */
       if (vector_rank(vect) == 1)
@@ -79415,7 +79415,7 @@ static goto_t set_implicit_pair(s7_scheme *sc, s7_pointer lst, s7_pointer inds, 
 
   if (!is_null(cdr(inds)))
     {
-      /* split (set! (a b c...) v) into (set! ((a b) c ...) v), eval (a b), return (let ((L (list (list 1 2)))) (set! (L 0 0) 3) L) */
+      /* split (set! (a b c...) v) into (set! ((a b) c ...) v), eval (a b), return (% ((L (list (list 1 2)))) (set! (L 0 0) 3) L) */
       if (index_val)
 	{
 	  s7_pointer obj = list_ref_1(sc, lst, index_val);
@@ -79424,7 +79424,7 @@ static goto_t set_implicit_pair(s7_scheme *sc, s7_pointer lst, s7_pointer inds, 
 		     set_elist_5(sc, wrap_string(sc, "in ~S, (~S ~$) is ~S which can't take arguments", 47), form, lst, index_val, obj));
 	  return(call_set_implicit(sc, obj, cdr(inds), val, form));
 	}
-      push_stack(sc, OP_SET2, cdr(inds), val);            /* (let ((L (list (list 1 2 3)))) (set! (L (- (length L) 1) 2) 0) L) */
+      push_stack(sc, OP_SET2, cdr(inds), val);            /* (% ((L (list (list 1 2 3)))) (set! (L (- (length L) 1) 2) 0) L) */
       sc->code = list_2(sc, caadr(form), car(inds));
       return(goto_unopt);
     }
@@ -79471,20 +79471,20 @@ static goto_t set_implicit_hash_table(s7_scheme *sc, s7_pointer table, s7_pointe
       if (keyval)
 	{
 	  s7_pointer obj = s7_hash_table_ref(sc, table, keyval);
-	  if (obj == sc->F)                           /* (let ((h (hash-table 'b 1))) (set! (h 'a 'asdf) 32)) */
+	  if (obj == sc->F)                           /* (% ((h (hash-table 'b 1))) (set! (h 'a 'asdf) 32)) */
 	    error_nr(sc, sc->syntax_error_symbol,
 		     set_elist_4(sc, wrap_string(sc, "in ~S, ~$ does not exist in ~S", 30), form, keyval, table));
 	  else
-	    if (!is_applicable(obj))                  /* (let ((h (hash-table 'b 1))) (set! (h 'b 'asdf) 32)) */
+	    if (!is_applicable(obj))                  /* (% ((h (hash-table 'b 1))) (set! (h 'b 'asdf) 32)) */
 	      error_nr(sc, sc->no_setter_symbol,
 		       set_elist_5(sc, wrap_string(sc, "in ~S, (~S ~$) is ~S which can't take arguments", 47), form, table, keyval, obj));
-	  /* (let ((v (hash-table 'a (hash-table 'b 1)))) (set! (v 'a 'b 'b) 32) v) ->
+	  /* (% ((v (hash-table 'a (hash-table 'b 1)))) (set! (v 'a 'b 'b) 32) v) ->
 	   *    error: in (set! (v 'a 'b 'b) 32), ((hash-table 'b 1) 'b) is 1 which can't take arguments
-	   * (let ((v (hash-table 'a (list 1 2)))) (set! (v 'a 1) 5)) -> code: (set! ((1 2) 1) 5) -> 5 (v: (hash-table 'a (1 5)))
+	   * (% ((v (hash-table 'a (list 1 2)))) (set! (v 'a 1) 5)) -> code: (set! ((1 2) 1) 5) -> 5 (v: (hash-table 'a (1 5)))
 	   */
 	  return(call_set_implicit(sc, obj, cdr(inds), val, form));
 	}
-      push_stack(sc, OP_SET2, cdr(inds), val); /* (let ((L (hash-table 'b (hash-table 'a 1)))) (set! (L (symbol "b") (symbol "a")) 0) L) */
+      push_stack(sc, OP_SET2, cdr(inds), val); /* (% ((L (hash-table 'b (hash-table 'a 1)))) (set! (L (symbol "b") (symbol "a")) 0) L) */
       sc->code = list_2(sc, caadr(form), key);  /* plist unsafe */
       return(goto_unopt);
     }
@@ -79535,7 +79535,7 @@ static goto_t set_implicit_let(s7_scheme *sc, s7_pointer let, s7_pointer inds, s
       if (symval)
 	{
 	  s7_pointer obj = let_ref(sc, let, symval);
-	  if (!is_applicable(obj))              /* (let ((h (hash-table 'b 1))) (set! (h 'b 'asdf) 32)) */
+	  if (!is_applicable(obj))              /* (% ((h (hash-table 'b 1))) (set! (h 'b 'asdf) 32)) */
 	    error_nr(sc, sc->no_setter_symbol,
 		     set_elist_5(sc, wrap_string(sc, "in ~S, (~S ~$) is ~S which can't take arguments", 47), form, let, symval, obj));
 	  return(call_set_implicit(sc, obj, cdr(inds), val, form));
@@ -79566,7 +79566,7 @@ static goto_t set_implicit_let(s7_scheme *sc, s7_pointer let, s7_pointer inds, s
   return(goto_top_no_pop);
 }
 
-static goto_t set_implicit_function(s7_scheme *sc, s7_pointer fnc)  /* (let ((lst (list 1 2))) (set! (list-ref lst 0) 2) lst) */
+static goto_t set_implicit_function(s7_scheme *sc, s7_pointer fnc)  /* (% ((lst (list 1 2))) (set! (list-ref lst 0) 2) lst) */
 {
   if (!is_t_procedure(c_function_setter(fnc)))
     {
@@ -79577,7 +79577,7 @@ static goto_t set_implicit_function(s7_scheme *sc, s7_pointer fnc)  /* (let ((ls
       /* here multiple-values can't happen because we don't eval the new-value argument */
       return(goto_apply);
     }
-  /* here the setter can be anything, so we need to check the needs_copied_args bit. (set! ((dilambda / (let ((x 3)) (^ (y) (+ x y))))) 3)! */
+  /* here the setter can be anything, so we need to check the needs_copied_args bit. (set! ((dilambda / (% ((x 3)) (^ (y) (+ x y))))) 3)! */
   push_op_stack(sc, c_function_setter(fnc));
   if (is_pair(cdar(sc->code)))
     {
@@ -79737,15 +79737,15 @@ static goto_t op_set2(s7_scheme *sc)
 {
   if (is_pair(sc->value))
     {
-      /* (let ((L '((1 2 3)))) (set! ((L 0) 1) 32) L), (let ((L '(((1 2 3))))) (set! ((L 0) 0 1) 32) L)
+      /* (% ((L '((1 2 3)))) (set! ((L 0) 1) 32) L), (% ((L '(((1 2 3))))) (set! ((L 0) 0 1) 32) L)
        * any deeper nesting was handled already by the first eval
        *   set! looks at its first argument, if it's a symbol, it sets the associated value,
        *   if it's a list, it looks at the car of that list to decide which setter to call,
        *   if it's a list of lists, it passes the embedded lists to eval, then looks at the
        *   car of the result.  This means that we can do crazy things like:
-       *   (let ((x '(1)) (y '(2))) (set! ((? #t x y) 0) 32) x)
+       *   (% ((x '(1)) (y '(2))) (set! ((? #t x y) 0) 32) x)
        * the other args need to be evaluated (but not the list as if it were code):
-       *   (let ((L '((1 2 3))) (index 1)) (set! ((L 0) index) 32) L)
+       *   (% ((L '((1 2 3))) (index 1)) (set! ((L 0) index) 32) L)
        */
       if (!s7_is_proper_list(sc, sc->args))                              /* (set! ('(1 2) 1 . 2) 1) */
 	syntax_error_nr(sc, "set! target arguments are an improper list: ~A", 46, sc->args);
@@ -79763,8 +79763,8 @@ static goto_t op_set2(s7_scheme *sc)
   if ((is_any_vector(sc->value)) &&
       (vector_rank(sc->value) == proper_list_length(sc->args))) /* sc->code == new value? */
     {
-      /* (let ((L #(#(1 2 3) #(4 5 6)))) (set! ((L 1) 0) 32) L)
-       * bad case when args is nil: (let ((L #(#(1 2 3) #(4 5 6)))) (set! ((L 1)) 32) L)
+      /* (% ((L #(#(1 2 3) #(4 5 6)))) (set! ((L 1) 0) 32) L)
+       * bad case when args is nil: (% ((L #(#(1 2 3) #(4 5 6)))) (set! ((L 1)) 32) L)
        */
       if (sc->args == sc->nil)
 	syntax_error_nr(sc, "vector set!: not enough arguments: ~S", 37, sc->code);
@@ -79774,7 +79774,7 @@ static goto_t op_set2(s7_scheme *sc)
       sc->code = car(sc->args);
       return(goto_eval);
     }
-  sc->code = cons_unchecked(sc, sc->set_symbol, cons(sc, set_ulist_1(sc, sc->value, sc->args), sc->code)); /* (let ((x 32)) (set! ((curlet) 'x) 3) x) */
+  sc->code = cons_unchecked(sc, sc->set_symbol, cons(sc, set_ulist_1(sc, sc->value, sc->args), sc->code)); /* (% ((x 32)) (set! ((curlet) 'x) 3) x) */
   return(set_implicit(sc));
 }
 
@@ -81864,7 +81864,7 @@ static /* inline */ bool op_dotimes_step_o(s7_scheme *sc) /* called once in eval
   else
     {
       slot_set_value(ctr, g_add_x1(sc, with_list_t1(now)));
-      /* (: (hi) (let ((x 0.0) (y 1.0)) (do ((i y (+ i 1))) ((= i 6)) (do ((i i (+ i 1))) ((>= i 7)) (set! x (+ x i)))) x)) */
+      /* (: (hi) (% ((x 0.0) (y 1.0)) (do ((i y (+ i 1))) ((= i 6)) (do ((i i (+ i 1))) ((>= i 7)) (set! x (+ x i)))) x)) */
       set_car(sc->t2_1, slot_value(ctr));
       set_car(sc->t2_2, end);
       end = cadr(code);
@@ -82165,7 +82165,7 @@ static bool do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
   memclr((void *)vars, O_SIZE * sizeof(opt_info *));
 
   /* do_let with non-float vars doesn't get many fixable hits */
-  if ((!is_pair(cdr(let_code))) || (!is_list(cadr(let_code)))) /* (do ((j 0 (+ j 1))) ((= j 1)) (let name 123)) */
+  if ((!is_pair(cdr(let_code))) || (!is_list(cadr(let_code)))) /* (do ((j 0 (+ j 1))) ((= j 1)) (% name 123)) */
     return(false);
   let_body = cddr(let_code);
   body_len = s7_list_length(sc, let_body);
@@ -82418,9 +82418,9 @@ static goto_t op_safe_dotimes(s7_scheme *sc)
 static goto_t op_safe_do(s7_scheme *sc)
 {
   /* body is safe, step = +1, end is = or >=, but stepper and end might be set (or at least indirectly exported) in the body:
-   *    (let ((lst ())) (do ((i 0 (+ i 1))) ((= i 10)) (let ((j (min i 100))) (set! lst (cons j lst)))) lst)
+   *    (% ((lst ())) (do ((i 0 (+ i 1))) ((= i 10)) (% ((j (min i 100))) (set! lst (cons j lst)))) lst)
    *  however, we're very restrictive about this in check_do and do_is_safe; even this is considered trouble:
-   *    (let ((x 0)) (do ((i i (+ i 1))) ((= i 7)) (set! x (+ x i))) x)
+   *    (% ((x 0)) (do ((i i (+ i 1))) ((= i 7)) (set! x (+ x i))) x)
    * but end might not be an integer -- need to catch this earlier.
    */
   s7_pointer end, init_val, end_val, code, form = sc->code;
@@ -82438,7 +82438,7 @@ static goto_t op_safe_do(s7_scheme *sc)
       return(goto_do_unchecked);
     }
 
-  /* (let ((sum 0)) (: (hi) (do ((i 10 (+ i 1))) ((= i 10) i) (set! sum (+ sum i)))) (hi)) */
+  /* (% ((sum 0)) (: (hi) (do ((i 10 (+ i 1))) ((= i 10) i) (set! sum (+ sum i)))) (hi)) */
   sc->curlet = make_let(sc, sc->curlet);
   let_set_dox_slot1(sc->curlet, add_slot_checked(sc, sc->curlet, caaar(code), init_val)); /* define the step var -- might be needed in the end clauses */
 
@@ -82641,7 +82641,7 @@ static void op_do_unchecked(s7_scheme *sc)
 
 static bool do_unchecked(s7_scheme *sc)
 {
-  if (is_null(car(sc->code)))                     /* (do () ...) -- (let ((i 0)) (do () ((= i 1)) (set! i 1))) */
+  if (is_null(car(sc->code)))                     /* (do () ...) -- (% ((i 0)) (do () ((= i 1)) (set! i 1))) */
     {
       sc->curlet = make_let(sc, sc->curlet);
       sc->args = cons_unchecked(sc, sc->nil, cadr(sc->code));
@@ -82851,8 +82851,8 @@ static void apply_let(s7_scheme *sc)                       /* -------- environme
   sc->value = let_ref(sc, sc->code, car(sc->args));
   if (is_pair(cdr(sc->args)))
     sc->value = implicit_index_checked(sc, sc->code, sc->value, sc->args);
-  /*    (let ((v #(1 2 3))) (let ((e (curlet))) ((e 'v) 1))) -> 2
-   * so (let ((v #(1 2 3))) (let ((e (curlet))) (e 'v 1))) -> 2
+  /*    (% ((v #(1 2 3))) (% ((e (curlet))) ((e 'v) 1))) -> 2
+   * so (% ((v #(1 2 3))) (% ((e (curlet))) (e 'v 1))) -> 2
    */
 }
 
@@ -82907,20 +82907,20 @@ static Inline void inline_apply_lambda(s7_scheme *sc)      /* -------- normal fu
   sc->code = closure_body(sc->code);
 }
 
-static void op_f(s7_scheme *sc)     /* sc->code: ((^ () 32)) -> (let () 32) */
+static void op_f(s7_scheme *sc)     /* sc->code: ((^ () 32)) -> (% () 32) */
 {
   sc->curlet = make_let(sc, sc->curlet);
   sc->code = opt3_pair(sc->code); /* cddar */
 }
 
-static void op_f_a(s7_scheme *sc)   /* sc->code: ((^ (x) (+ x 1)) i) -> (let ((x i)) (+ x 1)) */
+static void op_f_a(s7_scheme *sc)   /* sc->code: ((^ (x) (+ x 1)) i) -> (% ((x i)) (+ x 1)) */
 {
   /* if caddar(sc->code) is fxable [(+ x 1) above], this could call fx and return to the top */
   sc->curlet = inline_make_let_with_slot(sc, sc->curlet, opt3_sym(cdr(sc->code)), fx_call(sc, cdr(sc->code)));
   sc->code = opt3_pair(sc->code);
 }
 
-static void op_f_aa(s7_scheme *sc)  /* sc->code: ((^ (x y) (+ x y)) i j) -> (let ((x i) (y j)) (+ x y)) */
+static void op_f_aa(s7_scheme *sc)  /* sc->code: ((^ (x y) (+ x y)) i j) -> (% ((x i) (y j)) (+ x y)) */
 {
   gc_protect_via_stack(sc, fx_call(sc, cdr(sc->code)));
   sc->curlet = make_let_with_two_slots(sc, sc->curlet, opt3_sym(cdr(sc->code)), stack_protected1(sc), cadadr(car(sc->code)), fx_call(sc, cddr(sc->code)));
@@ -82928,7 +82928,7 @@ static void op_f_aa(s7_scheme *sc)  /* sc->code: ((^ (x y) (+ x y)) i j) -> (let
   sc->code = opt3_pair(sc->code);
 }
 
-static void op_f_np(s7_scheme *sc)   /* sc->code: ((^ (x y) (+ x y)) (values i j)) -> (let ((x i) (y j)) (+ x y)) after splice */
+static void op_f_np(s7_scheme *sc)   /* sc->code: ((^ (x y) (+ x y)) (values i j)) -> (% ((x i) (y j)) (+ x y)) after splice */
 {
   s7_pointer pars = cadar(sc->code);
   s7_pointer e = make_let(sc, sc->curlet);
@@ -83148,8 +83148,8 @@ static s7_pointer lambda_star_set_args(s7_scheme *sc)
 	    }
 	  pars = cdr(pars);
 	}}
-  /* (let () (define* (hi (a 1) :allow-other-keys) a) (hi :a 2 32)) -> 'error */
-  /* (let () (define* (f (a :b)) a) (list (f) (f 1) (f :c) (f :a :c) (f :a 1) (f))) -> 'error */
+  /* (% () (define* (hi (a 1) :allow-other-keys) a) (hi :a 2 32)) -> 'error */
+  /* (% () (define* (f (a :b)) a) (list (f) (f 1) (f :c) (f :a :c) (f :a 1) (f))) -> 'error */
 
   /* check for trailing args with no :rest arg */
   if (is_not_null(arg_vals))
@@ -83211,7 +83211,7 @@ static inline bool lambda_star_default(s7_scheme *sc)
 		   *   define* shadows the caller's parameter before checking the default arg values, so the default f
 		   *   refers to the define* -- I'm not sure this is a bug.  It means that (define* (f (a f)) a)
 		   *   returns f: (equal? f (f)) -> #t, so any outer f needs an extra let and endless outlets:
-		   *   (let ((f 3)) (let () (define* (f (a ((outlet (outlet (outlet (curlet)))) 'f))) a) (f))) -> 3
+		   *   (% ((f 3)) (% () (define* (f (a ((outlet (outlet (outlet (curlet)))) 'f))) a) (f))) -> 3
 		   *   We want the shadowing once the define* is done, so the current mess is simplest.
 		   */
 		  slot_set_value(z, s7_symbol_local_value(sc, val, let_outlet(sc->curlet)));
@@ -83736,7 +83736,7 @@ static void op_define_with_setter(s7_scheme *sc)
       if (is_let(sc->curlet))
 	{
 	  if (let_id(sc->curlet) <= symbol_id(code)) /* we're adding a later-bound symbol to an old let (?) */
-	    {                                        /* was < 16-Aug-22: (let ((a 3)) (: (a) 4) (curlet)) */
+	    {                                        /* was < 16-Aug-22: (% ((a 3)) (: (a) 4) (curlet)) */
 	      s7_pointer slot;
 	      sc->let_number++; /* dummy let, force symbol lookup */
 	      for (slot = let_slots(sc->curlet); tis_slot(slot); slot = next_slot(slot))
@@ -87767,7 +87767,7 @@ static void op_safe_c_pp_6_mv(s7_scheme *sc) /* both args mv */
   set_cdr(p, sc->value);
   /* fn_proc(sc->code) here is g_add_2, but we have any number of args from a values call
    *   the original (unoptimized) function is c_function_base(opt1_cfunc(sc->code))
-   *   (let () (: (hi) (+ (values 1 2) (values 3 4))) (hi)) -> 10
+   *   (% () (: (hi) (+ (values 1 2) (values 3 4))) (hi)) -> 10
    */
   sc->code = c_function_base(opt1_cfunc(sc->code));
 }
@@ -91079,7 +91079,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->code = cdr(sc->code);
 	  /* sc->value is the func (but can be anything if the code is messed up: (#\a 3))
 	   *   we don't have to delay lookup of the func because arg evaluation order is not specified, so
-	   *     (let ((func +)) (func (let () (set! func -) 3) 2))
+	   *     (% ((func +)) (func (% () (set! func -) 3) 2))
 	   *   can return 5.
 	   */
 	  push_op_stack(sc, sc->value);
@@ -94568,7 +94568,7 @@ if optional-false-stuff exists, it is evaluated."
   #define H_set               "(set! variable value) sets the value of variable to value."
   #define H_let               "(let ((var val)...) ...) binds each variable to its initial value, then evaluates its body,\
 returning the value of the last form.  The let variables are local to it, and are not available for use until all have been initialized."
-  #define H_let_star          "(let* ((var val)...) ...) binds each variable to its initial value, then evaluates its body, \
+  #define H_let_star          "(%* ((var val)...) ...) binds each variable to its initial value, then evaluates its body, \
 returning the value of the last form.  The let* variables are local to it, and are available immediately."
   #define H_letrec            "(letrec ((var (^ ...)))...) is like let, but var can refer to itself in its value \
 (i.e. you can define local recursive functions)"
@@ -94626,8 +94626,8 @@ then returns each var to its original value."
   sc->define_expansion_star_symbol = definer_syntax(sc, "define-expansion*",OP_DEFINE_EXPANSION_STAR, int_two, max_arity, H_define_expansion_star);
   sc->define_bacro_symbol =      definer_syntax(sc, "define-bacro",    OP_DEFINE_BACRO,      int_two,  max_arity,  H_define_bacro);
   sc->define_bacro_star_symbol = definer_syntax(sc, "define-bacro*",   OP_DEFINE_BACRO_STAR, int_two,  max_arity,  H_define_bacro_star);
-  sc->let_symbol =               binder_syntax(sc, "let",              OP_LET,               int_two,  max_arity,  H_let);
-  sc->let_star_symbol =          binder_syntax(sc, "let*",             OP_LET_STAR,          int_two,  max_arity,  H_let_star);
+  sc->let_symbol =               binder_syntax(sc, "%",                OP_LET,               int_two,  max_arity,  H_let);                // [c4augustus]
+  sc->let_star_symbol =          binder_syntax(sc, "%*",               OP_LET_STAR,          int_two,  max_arity,  H_let_star);           // [c4augustus]
   sc->letrec_symbol =            binder_syntax(sc, "letrec",           OP_LETREC,            int_two,  max_arity,  H_letrec);
   sc->letrec_star_symbol =       binder_syntax(sc, "letrec*",          OP_LETREC_STAR,       int_two,  max_arity,  H_letrec_star);
   sc->do_symbol =                binder_syntax(sc, "do",               OP_DO,                int_two,  max_arity,  H_do); /* 2 because body can be null */
@@ -94646,7 +94646,7 @@ then returns each var to its original value."
 
 #if WITH_IMMUTABLE_UNQUOTE
   /* this code solves the various unquote redefinition troubles
-   * if "," -> "(unquote...)" in the reader, (let (, (^ (x) (+ x 1))) ,,,,'1) -> 5
+   * if "," -> "(unquote...)" in the reader, (% (, (^ (x) (+ x 1))) ,,,,'1) -> 5
    */
   sc->unquote_symbol =              make_symbol(sc, ",", 1);
   set_immutable(sc->unquote_symbol);
@@ -94684,7 +94684,7 @@ then returns each var to its original value."
   sc->else_symbol =                 make_symbol(sc, "else", 4);
   s7_make_slot(sc, sc->nil, sc->else_symbol, sc->else_symbol);
   slot_set_value(initial_slot(sc->else_symbol), sc->T);
-  /* if we set #_else to 'else, it can pick up a local else value: (let ((else #f)) (cond (#_else 2)...)) */
+  /* if we set #_else to 'else, it can pick up a local else value: (% ((else #f)) (cond (#_else 2)...)) */
 
   sc->allow_other_keys_keyword =    s7_make_keyword(sc, "allow-other-keys");
   sc->rest_keyword =                s7_make_keyword(sc, "rest");
@@ -95804,7 +95804,7 @@ s7_scheme *s7_init(void)
 #if (!WITH_PURE_S7)
   s7_define_variable(sc, "make-rectangular", global_value(sc->complex_symbol));
   s7_eval_c_string(sc, "(: make-polar                                                                \n\
-                          (let ((+signature+ '(number? real? real?)))                                     \n\
+                          (% ((+signature+ '(number? real? real?)))                                     \n\
                             (^ (mag ang)                                                             \n\
                               (? (and (real? mag) (real? ang))                                           \n\
                                   (complex (* mag (cos ang)) (* mag (sin ang)))                           \n\
@@ -95836,7 +95836,7 @@ s7_scheme *s7_init(void)
                             (^ (return)                                                              \n\
                               (for-each                                                                   \n\
                                 (^ (clause)                                                          \n\
-	                          (let ((val (eval (car clause))))                                        \n\
+	                          (% ((val (eval (car clause))))                                        \n\
                                     (when val                                                             \n\
                                       (return                                                             \n\
                                         (cond ((null? (cdr clause)) val)                                  \n\
@@ -95847,18 +95847,18 @@ s7_scheme *s7_init(void)
                               (values))))"); /* this is not redundant */  /* map above ignores trailing cdr if improper */
 
   s7_eval_c_string(sc, "(: make-hook                                                                 \n\
-                          (let ((+documentation+ \"(make-hook . pars) returns a new hook (a function) that passes the parameters to its function list.\")) \n\
+                          (% ((+documentation+ \"(make-hook . pars) returns a new hook (a function) that passes the parameters to its function list.\")) \n\
                             (^ hook-args                                                             \n\
-                              (let ((body ()))                                                            \n\
+                              (% ((body ()))                                                            \n\
                                 (apply ^* hook-args                                                  \n\
                                   `((let ((result #<unspecified>))                                        \n\
-                                      (let ((hook (openlet (sublet (curlet) 'let-ref-fallback (^ (e sym) #<undefined>))))) \n\
+                                      (% ((hook (openlet (sublet (curlet) 'let-ref-fallback (^ (e sym) #<undefined>))))) \n\
                                         (for-each (^ (hook-function) (hook-function hook)) body)     \n\
                                         result))))))))");
-  /* (procedure-source (make-hook 'x 'y)): (^* (x y) (let ((result #<unspecified>)) ... result)), see stuff.scm for commentary */
+  /* (procedure-source (make-hook 'x 'y)): (^* (x y) (% ((result #<unspecified>)) ... result)), see stuff.scm for commentary */
 
   s7_eval_c_string(sc, "(: hook-functions                                                            \n\
-                          (let ((+signature+ '(#t procedure?))                                            \n\
+                          (% ((+signature+ '(#t procedure?))                                            \n\
                                 (+documentation+ \"(hook-functions hook) gets or sets the list of functions associated with the hook\")) \n\
                             (dilambda                                                                     \n\
                               (^ (hook)                                                              \n\

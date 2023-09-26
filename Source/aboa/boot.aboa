@@ -16,7 +16,7 @@
   ;; TODO: @@@ ASSUMING 'pointing DEVICE
   ;;(ue-log "TRACE SCHEME >>> BEGIN hook-input")
   (: (trace-event event finger location)
-    (let ((info (format #f "TRACE SCHEME >>> ~S finger ~S at ~S" event finger location)))
+    (% ((info (format #f "TRACE SCHEME >>> ~S finger ~S at ~S" event finger location)))
       (? trace-log   (ue-log info))
       (? trace-print (ue-print-string world info))))
   (ue-bind-input-touch world 'pressed
