@@ -1,20 +1,20 @@
-;;; Copyright 2023 Alkaline Games, LLC.
-;;;
-;;; This Source Code Form is subject to the terms of the Mozilla Public
-;;; License, v. 2.0. If a copy of the MPL was not distributed with this
-;;; file, You can obtain one at https://mozilla.org/MPL/2.0/.
+# Copyright 2023 Alkaline Games, LLC.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-;;; AlkalineScemeUE boot program
+# AlkalineScemeUE boot program
 
-( ;; TODO: @@@ NEEDS TO BE A LIST OF EXPRESSIONS FOR NOW
+( ## TODO: @@@ NEEDS TO BE A LIST OF EXPRESSIONS FOR NOW
 (ue-log "TRACE SCHEME >>> BEGIN booting AlkalineSchemeUE")
 
 (: trace-log $f)
 (: trace-print $f)
 
 (: (hook-player-input world device action durations func)
-  ;; TODO: @@@ ASSUMING 'pointing DEVICE
-  ;;(ue-log "TRACE SCHEME >>> BEGIN hook-input")
+  ## TODO: @@@ ASSUMING 'pointing DEVICE
+  ##(ue-log "TRACE SCHEME >>> BEGIN hook-input")
   (: (trace-event event finger location)
     (% ((info (format $f "TRACE SCHEME >>> ~S finger ~S at ~S" event finger location)))
       (? trace-log   (ue-log info))
@@ -25,20 +25,20 @@
     (^ (finger location) (trace-event "released" finger location)))
   (ue-bind-input-touch world 'repeated
     (^ (finger location) (trace-event "repeated" finger location))))
-  ;;(ue-log "TRACE SCHEME <<< END hook-input"))
+  ##(ue-log "TRACE SCHEME <<< END hook-input"))
 
 (: (open-scheme-editor screen-pos)
-  ;; TODO: ### IMPLEMENT
+  ## TODO: ### IMPLEMENT
   (? trace-log (ue-log (format $f "TRACE SCHEME (open-scheme-editor ~S)" screen-pos))))
 
 (ue-hook-on-world-begin-play
   (^ (world)
-    ;;(ue-log "TRACE SCHEME lambda from (ue-hook-on-world-initialized-actors)")
+    ##(ue-log "TRACE SCHEME lambda from (ue-hook-on-world-initialized-actors)")
     (ue-print-string world "Alkaline Scheme is alive")
     (hook-player-input world 'pointing 'press '(200 0 200 0)
       (^ (screen-pos) (open-scheme-editor screen-pos)))))
 
 (ue-log "TRACE SCHEME <<< END booting AlkalineSchemeUE")
 )
-;; TODO: ### s7_eval_c_string(...) is reporting "syntax error"
-;; here after the last expression successfully executes ?!?
+## TODO: ### s7_eval_c_string(...) is reporting "syntax error"
+## here after the last expression successfully executes ?!?

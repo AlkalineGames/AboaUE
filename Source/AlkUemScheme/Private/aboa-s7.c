@@ -14525,7 +14525,7 @@ static void init_ctables(void)
   char_ok_in_a_name[0] = false;
   char_ok_in_a_name[(uint8_t)'('] = false;  /* cast for C++ */
   char_ok_in_a_name[(uint8_t)')'] = false;
-  char_ok_in_a_name[(uint8_t)';'] = false;
+  char_ok_in_a_name[(uint8_t)'#'] = false; // [c4augustus]
   char_ok_in_a_name[(uint8_t)'\t'] = false;
   char_ok_in_a_name[(uint8_t)'\n'] = false;
   char_ok_in_a_name[(uint8_t)'\r'] = false;
@@ -32353,7 +32353,7 @@ static void slashify_string_to_port(s7_scheme *sc, s7_pointer port, const char *
 	      buf[0] = 'x';
 	      buf[1] = (n < 16) ? '0' : dignum[(n / 16) % 16];
 	      buf[2] = dignum[n % 16];
-	      buf[3] = ';';
+	      buf[3] = '#'; // [c4augustus]
 	      buf[4] = '\0';
 	      port_write_string(port)(sc, buf, 4, port);
 	    }
@@ -88683,7 +88683,7 @@ static token_t token(s7_scheme *sc) /* inline here is slower */
     case ')':  return(TOKEN_RIGHT_PAREN);
     case '.':  return(read_dot(sc, current_input_port(sc)));
     case '\'': return(TOKEN_QUOTE);
-    case ';':  return(port_read_semicolon(current_input_port(sc))(sc, current_input_port(sc)));
+    case '#':  return(port_read_semicolon(current_input_port(sc))(sc, current_input_port(sc))); // [c4augustus]
     case '"':  return(TOKEN_DOUBLE_QUOTE);
     case '`':  return(TOKEN_BACK_QUOTE);
     case ',':  return(read_comma(sc, current_input_port(sc)));
@@ -88711,7 +88711,7 @@ static int32_t read_x_char(s7_scheme *sc, int32_t i, s7_pointer pt)
 	  backchar(c, pt);           /* "\x44" I think -- not sure about this -- Guile is happy but I think it contradicts r7rs.pdf */
 	  return(i);
 	}
-      if (c == ';')
+      if (c == '#') // [c4augustus]
 	{
 	  if (c_ctr == 0)            /* "\x;" */
  	    read_error_nr(sc, "unknown backslash usage -- perhaps you meant two backslashes?");
@@ -88739,7 +88739,7 @@ static int32_t read_x_char(s7_scheme *sc, int32_t i, s7_pointer pt)
 	  backchar((char)c, pt);
 	  return(i);
 	}
-      if (c == ';')                  /* "\x4;" */
+      if (c == '#') // [c4augustus]  /* "\x4;" */
 	{
 	  sc->strbuf[i++] = (unsigned char)d1;
 	  return(i);
@@ -91909,7 +91909,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		  case ')':  sc->value = sc->nil; goto READ_LIST;       /* was tok = TOKEN_RIGHT_PAREN */
 		  case '.':  sc->tok = read_dot(sc, pt);                break;
 		  case '\'': sc->tok = TOKEN_QUOTE;                     break;
-		  case ';':  sc->tok = port_read_semicolon(pt)(sc, pt); break;
+		  case '#':  sc->tok = port_read_semicolon(pt)(sc, pt); break; // [c4augustus]
 		  case '"':  sc->tok = TOKEN_DOUBLE_QUOTE;              break;
 		  case '`':  sc->tok = TOKEN_BACK_QUOTE;                break;
 		  case ',':  sc->tok = read_comma(sc, pt);              break;
@@ -91960,7 +91960,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 		sc->value = read_expression(sc);
 		continue;
 
-	      case ';':
+	      case '#': // [c4augustus]
 		sc->tok = port_read_semicolon(pt)(sc, pt);
 		break;
 
