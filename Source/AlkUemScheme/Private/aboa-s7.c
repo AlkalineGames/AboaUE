@@ -1,3 +1,7 @@
+/* Aboa programming language by modification of s7 implementation
+  [Linguagem de programação Aboa por modificação da implementação do s7]
+  [c4augustus]
+*/
 /* s7, a Scheme interpreter
  *
  *   derived from TinyScheme 1.39, but not a single byte of that code remains

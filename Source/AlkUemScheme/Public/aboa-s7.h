@@ -1,3 +1,7 @@
+/* Aboa programming language by modification of s7 implementation
+  [Linguagem de programação Aboa por modificação da implementação do s7]
+  [c4augustus]
+*/
 #ifndef S7_H
 #define S7_H
 
