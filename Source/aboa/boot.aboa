@@ -9,9 +9,8 @@
 ( ## TODO: @@@ NEEDS TO BE A LIST OF EXPRESSIONS FOR NOW
 (ue-log "TRACE SCHEME >>> BEGIN booting AlkalineSchemeUE")
 
-(! tracing-to-log $f)
-(! tracing-to-print $t)
-(! tracing-to-nowhere $maybe)
+(~ tracing-to-log $f)
+(~ tracing-to-print $t)
 
 (! (hook-player-input world device action durations func)
   ## TODO: @@@ ASSUMING 'pointing DEVICE

@@ -1363,7 +1363,7 @@ struct s7_scheme {
   s7_pointer else_symbol, lambda_symbol, lambda_star_symbol, let_symbol, quote_symbol, quasiquote_symbol, unquote_symbol, macroexpand_symbol,
              define_expansion_symbol, define_expansion_star_symbol, with_let_symbol, if_symbol, autoload_error_symbol,
              when_symbol, unless_symbol, begin_symbol, cond_symbol, case_symbol, and_symbol, or_symbol, do_symbol, number_to_real_symbol,
-             define_symbol, define_star_symbol, define_constant_symbol, with_baffle_symbol, define_macro_symbol, no_setter_symbol,
+             define_imm_symbol, define_imm_star_symbol, define_mut_symbol, define_mut_star_symbol, define_constant_symbol, with_baffle_symbol, define_macro_symbol, no_setter_symbol, // [c4augustus]
              define_macro_star_symbol, define_bacro_symbol, define_bacro_star_symbol, letrec_symbol, letrec_star_symbol, let_star_symbol,
              rest_keyword, allow_other_keys_keyword, readable_keyword, display_keyword, write_keyword, value_symbol, type_symbol,
              baffled_symbol, set_symbol, body_symbol, class_name_symbol, feed_to_symbol, format_error_symbol, immutable_error_symbol,
@@ -72392,11 +72392,11 @@ static void check_lambda_args(s7_scheme *sc, s7_pointer args, int32_t *arity, s7
 		     set_elist_4(sc, wrap_string(sc, "lambda parameter ~S is a pair (perhaps use lambda*?): (~S ~S ...)", 65),
 				 car_x, car(form), cadr(form)));
 	  if ((car_x == sc->rest_keyword) &&
-	      ((car(form) == sc->define_symbol) || (car(form) == sc->lambda_symbol)))
+	      ((car(form) == sc->define_imm_symbol) || (car(form) == sc->define_mut_symbol) || (car(form) == sc->lambda_symbol))) // [c4augustus]
 	    error_nr(sc, sc->syntax_error_symbol,
 		     set_elist_5(sc, wrap_string(sc, "lambda parameter is ~S? (~S ~S ...), perhaps use ~S", 51),
 				 car_x, car(form), cadr(form),
-				 (car(form) == sc->define_symbol) ? sc->define_star_symbol : sc->lambda_star_symbol));
+				 ((car(form) == sc->define_imm_symbol) || (car(form) == sc->define_mut_symbol)) ? sc->define_mut_star_symbol : sc->lambda_star_symbol)); // [c4augustus]
 	  error_nr(sc, sc->syntax_error_symbol,        /* (^ (a :b c) 1) */
 		   set_elist_4(sc, wrap_string(sc, "lambda parameter ~S is a constant: (~S ~S ...)", 46),
 			       car_x, car(form), cadr(form)));
@@ -77088,10 +77088,10 @@ static void check_define(s7_scheme *sc)
   bool starred = (sc->cur_op == OP_DEFINE_STAR);
   if (starred)
     {
-      caller = sc->define_star_symbol;
+      caller = sc->define_mut_star_symbol;
       sc->cur_op = OP_DEFINE_STAR_UNCHECKED;
     }
-  else caller = (sc->cur_op == OP_DEFINE) ? sc->define_symbol : sc->define_constant_symbol;
+  else caller = (sc->cur_op == OP_DEFINE) ? sc->define_mut_symbol : sc->define_constant_symbol;
 
   if (!is_pair(code))
     syntax_error_with_caller_nr(sc, "~A: nothing to define? ~A", 25, caller, sc->code);     /* (define) */
@@ -83627,8 +83627,8 @@ static s7_pointer define1_caller(s7_scheme *sc)
 {
   /* we can jump to op_define1, so this is not fool-proof */
   if (sc->cur_op == OP_DEFINE_CONSTANT) return(sc->define_constant_symbol);
-  if ((sc->cur_op == OP_DEFINE_STAR) || (sc->cur_op == OP_DEFINE_STAR_UNCHECKED)) return(sc->define_star_symbol);
-  return(sc->define_symbol);
+  if ((sc->cur_op == OP_DEFINE_STAR) || (sc->cur_op == OP_DEFINE_STAR_UNCHECKED)) return(sc->define_mut_star_symbol);
+  return(sc->define_mut_symbol);
 }
 
 static bool op_define1(s7_scheme *sc)
@@ -94621,8 +94621,10 @@ then returns each var to its original value."
   sc->case_symbol =              syntax(sc, "case",                    OP_CASE,              int_two,  max_arity,  H_case);
   sc->macroexpand_symbol =       syntax(sc, "macroexpand",             OP_MACROEXPAND,       int_one,  int_one,    H_macroexpand);
   sc->let_temporarily_symbol =   syntax(sc, "let-temporarily",         OP_LET_TEMPORARILY,   int_two,  max_arity,  H_let_temporarily);
-  sc->define_symbol =            definer_syntax(sc, "!",               OP_DEFINE,            int_two,  max_arity,  H_define);             // [c4augustus]
-  sc->define_star_symbol =       definer_syntax(sc, "!*",              OP_DEFINE_STAR,       int_two,  max_arity,  H_define_star);        // [c4augustus]
+  sc->define_imm_symbol =        definer_syntax(sc, "~",               OP_DEFINE,            int_two,  max_arity,  H_define);             // [c4augustus]
+  sc->define_imm_star_symbol =   definer_syntax(sc, "~*",              OP_DEFINE_STAR,       int_two,  max_arity,  H_define_star);        // [c4augustus]
+  sc->define_mut_symbol =        definer_syntax(sc, "!",               OP_DEFINE,            int_two,  max_arity,  H_define);             // [c4augustus]
+  sc->define_mut_star_symbol =   definer_syntax(sc, "!*",              OP_DEFINE_STAR,       int_two,  max_arity,  H_define_star);        // [c4augustus]
   sc->define_constant_symbol =   definer_syntax(sc, "define-constant", OP_DEFINE_CONSTANT,   int_two,  max_arity,  H_define_constant);
   sc->define_macro_symbol =      definer_syntax(sc, "define-macro",    OP_DEFINE_MACRO,      int_two,  max_arity,  H_define_macro);
   sc->define_macro_star_symbol = definer_syntax(sc, "define-macro*",   OP_DEFINE_MACRO_STAR, int_two,  max_arity,  H_define_macro_star);
