@@ -20,11 +20,11 @@
       (? tracing-to-log   (ue-log info))
       (? tracing-to-print (ue-print-string world info))))
   (ue-bind-input-touch world 'pressed
-    (^ (finger location) (trace-event "pressed" finger location)))
+    (& (finger location) (trace-event "pressed" finger location)))
   (ue-bind-input-touch world 'released
-    (^ (finger location) (trace-event "released" finger location)))
+    (& (finger location) (trace-event "released" finger location)))
   (ue-bind-input-touch world 'repeated
-    (^ (finger location) (trace-event "repeated" finger location))))
+    (& (finger location) (trace-event "repeated" finger location))))
   ##(ue-log "TRACE SCHEME <<< END hook-input"))
 
 (! (open-scheme-editor screen-pos)
@@ -32,11 +32,11 @@
   (? tracing-to-log (ue-log (format $f "TRACE SCHEME (open-scheme-editor ^S)" screen-pos))))
 
 (ue-hook-on-world-begin-play
-  (^ (world)
+  (& (world)
     ##(ue-log "TRACE SCHEME lambda from (ue-hook-on-world-initialized-actors)")
     (ue-print-string world "Alkaline Scheme is alive")
     (hook-player-input world 'pointing 'press '(200 0 200 0)
-      (^ (screen-pos) (open-scheme-editor screen-pos)))))
+      (& (screen-pos) (open-scheme-editor screen-pos)))))
 
 (ue-log "TRACE SCHEME <<< END booting AlkalineSchemeUE")
 )

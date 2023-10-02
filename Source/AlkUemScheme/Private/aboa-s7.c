@@ -1360,7 +1360,7 @@ struct s7_scheme {
 #endif
 
   /* syntax symbols et al */
-  s7_pointer else_symbol, lambda_symbol, lambda_star_symbol, let_symbol, quote_symbol, quasiquote_symbol, unquote_symbol, macroexpand_symbol,
+  s7_pointer else_symbol, lambda_func_symbol, lambda_func_star_symbol, lambda_proc_symbol, lambda_proc_star_symbol, let_symbol, quote_symbol, quasiquote_symbol, unquote_symbol, macroexpand_symbol, // [c4augustus]
              define_expansion_symbol, define_expansion_star_symbol, with_let_symbol, if_symbol, autoload_error_symbol,
              when_symbol, unless_symbol, begin_symbol, cond_symbol, case_symbol, and_symbol, or_symbol, do_symbol, number_to_real_symbol,
              define_imm_symbol, define_imm_star_symbol, define_mut_symbol, define_mut_star_symbol, define_constant_symbol, with_baffle_symbol, define_macro_symbol, no_setter_symbol, // [c4augustus]
@@ -45143,15 +45143,15 @@ static s7_pointer procedure_type_to_symbol(s7_scheme *sc, int32_t type)
 {
   switch (type)
     {
-    case T_CLOSURE:      return(sc->lambda_symbol);
-    case T_CLOSURE_STAR: return(sc->lambda_star_symbol);
+    case T_CLOSURE:      return(sc->lambda_proc_symbol);      // [c4augustus]
+    case T_CLOSURE_STAR: return(sc->lambda_proc_star_symbol); // [c4augustus]
     case T_MACRO:        return(sc->macro_symbol);
     case T_MACRO_STAR:   return(sc->macro_star_symbol);
     case T_BACRO:        return(sc->bacro_symbol);
     case T_BACRO_STAR:   return(sc->bacro_star_symbol);
     default: if (S7_DEBUGGING) fprintf(stderr, "%s[%d] wants %d symbol\n", __func__, __LINE__, type);
     }
-  return(sc->lambda_symbol);
+  return(sc->lambda_proc_symbol); // [c4augustus]
 }
 
 static s7_pointer g_procedure_source(s7_scheme *sc, s7_pointer args)
@@ -45845,7 +45845,7 @@ each a function of no arguments, guaranteeing that finish is called even if body
 
 static bool is_lambda(s7_scheme *sc, s7_pointer sym)
 {
-  return((sym == sc->lambda_symbol) && (symbol_id(sym) == 0)); /* do we need (!sc->in_with_let) ? */
+  return(((sym == sc->lambda_func_symbol) || (sym == sc->lambda_proc_symbol)) &&  (symbol_id(sym) == 0)); /* do we need (!sc->in_with_let) ? */ // [c4augustus]
   /* symbol_id=0 means it has never been rebound (T_GLOBAL might not be set for initial stuff) */
 }
 
@@ -70732,7 +70732,8 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		      (is_proper_list_1(sc, cadr(arg2))) &&
 		      (is_symbol(caadr(arg2))) &&
 		      (!is_probably_constant(caadr(arg2))) &&
-		      (!direct_memq(sc->lambda_symbol, e)))   /* lambda is redefined?? */
+		      (!direct_memq(sc->lambda_func_symbol, e)) && /* lambda is redefined?? */ // [c4augustus]
+		      (!direct_memq(sc->lambda_proc_symbol, e)))   /* lambda is redefined?? */ // [c4augustus]
 		    {
 		      set_unsafe_optimize_op(expr, (is_string(arg1)) ? OP_WITH_IO_C : OP_WITH_IO);
 		      set_opt2_pair(expr, cddr(arg2));
@@ -70752,7 +70753,8 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      (car(expr) != sc->values_symbol) &&
 	      (is_fxable(sc, arg2)) &&
 	      (is_pair(arg1)) &&
-	      (car(arg1) == sc->lambda_symbol))
+	      ((car(arg1) == sc->lambda_func_symbol) || // [c4augustus]
+	       (car(arg1) == sc->lambda_proc_symbol)))  // [c4augustus]
 	    {
 	      fx_annotate_arg(sc, cddr(expr), e);
 	      set_unsafe_optimize_op(expr, hop + OP_CL_FA);
@@ -70873,7 +70875,8 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	}
 
       if ((is_pair(arg1)) &&
-	  (car(arg1) == sc->lambda_symbol) &&
+	  ((car(arg1) == sc->lambda_func_symbol) ||  // [c4augustus]
+	   (car(arg1) == sc->lambda_proc_symbol)) && // [c4augustus]
 	  (is_pair(cdr(arg1))) &&              /* not (lambda) */
 	  (is_fxable(sc, arg2)) &&
 	  (is_null(cdr(closure_body(func)))))
@@ -71265,7 +71268,8 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
       if ((is_semisafe(func)) &&
 	  (is_symbol(car(expr))) && (car(expr) != sc->values_symbol) &&
 	  (is_fxable(sc, arg2)) && (is_fxable(sc, arg3)) &&
-	  (is_pair(arg1)) && (car(arg1) == sc->lambda_symbol))
+	  (is_pair(arg1)) && ((car(arg1) == sc->lambda_func_symbol) || // [c4augustus]
+	                      (car(arg1) == sc->lambda_proc_symbol)))  // [c4augustus]
 	{
 	  choose_c_function(sc, expr, func, 3);
 	  if (((fn_proc(expr) == g_for_each) || (fn_proc(expr) == g_map)) &&
@@ -72392,11 +72396,11 @@ static void check_lambda_args(s7_scheme *sc, s7_pointer args, int32_t *arity, s7
 		     set_elist_4(sc, wrap_string(sc, "lambda parameter ~S is a pair (perhaps use lambda*?): (~S ~S ...)", 65),
 				 car_x, car(form), cadr(form)));
 	  if ((car_x == sc->rest_keyword) &&
-	      ((car(form) == sc->define_imm_symbol) || (car(form) == sc->define_mut_symbol) || (car(form) == sc->lambda_symbol))) // [c4augustus]
+	      ((car(form) == sc->define_imm_symbol) || (car(form) == sc->define_mut_symbol) || (car(form) == sc->lambda_func_symbol) || (car(form) == sc->lambda_proc_symbol))) // [c4augustus]
 	    error_nr(sc, sc->syntax_error_symbol,
 		     set_elist_5(sc, wrap_string(sc, "lambda parameter is ~S? (~S ~S ...), perhaps use ~S", 51),
 				 car_x, car(form), cadr(form),
-				 ((car(form) == sc->define_imm_symbol) || (car(form) == sc->define_mut_symbol)) ? sc->define_mut_star_symbol : sc->lambda_star_symbol)); // [c4augustus]
+				 ((car(form) == sc->define_imm_symbol) || (car(form) == sc->define_mut_symbol)) ? sc->define_mut_star_symbol : sc->lambda_proc_star_symbol)); // [c4augustus]
 	  error_nr(sc, sc->syntax_error_symbol,        /* (^ (a :b c) 1) */
 		   set_elist_4(sc, wrap_string(sc, "lambda parameter ~S is a constant: (~S ~S ...)", 46),
 			       car_x, car(form), cadr(form)));
@@ -72857,7 +72861,8 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 			  return(RECUR_BODY);
 			}
 		      if ((is_c_function(f)) && (is_scope_safe(f)) &&
-			  (caar(p) == sc->lambda_symbol))
+			  ((caar(p) == sc->lambda_func_symbol) || // [c4augustus]
+			   (caar(p) == sc->lambda_proc_symbol)))  // [c4augustus]
 			{
 			  s7_pointer largs, lbody, q;
 			  body_t lresult;
@@ -74099,7 +74104,7 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
   if (len < 0)                /* (! (hi) 1 . 2) */
     error_nr(sc, sc->syntax_error_symbol,
 	     set_elist_3(sc, wrap_string(sc, "~A: function body messed up, ~A", 31),
-			 (unstarred_lambda) ? sc->lambda_symbol : sc->lambda_star_symbol,
+			 (unstarred_lambda) ? sc->lambda_proc_symbol : sc->lambda_proc_star_symbol, // [c4augustus]
 			 sc->code));
   if (len > 0)  /* i.e. not circular */
     {
@@ -77122,8 +77127,10 @@ static void check_define(s7_scheme *sc)
 	  set_local(func);
 	}
       if ((is_pair(cadr(code))) &&               /* look for (! sym (^ ...)) and treat it like (! (sym ...)...) */
-	  ((caadr(code) == sc->lambda_symbol) ||
-	   (caadr(code) == sc->lambda_star_symbol)) &&
+	  ((caadr(code) == sc->lambda_func_symbol) ||       // [c4augustus]
+	   (caadr(code) == sc->lambda_func_star_symbol) ||  // [c4augustus]
+	   (caadr(code) == sc->lambda_proc_symbol) ||       // [c4augustus]
+	   (caadr(code) == sc->lambda_proc_star_symbol)) && // [c4augustus]
 	  (symbol_id(caadr(code)) == 0))
 	{
 	  /* not is_global here because that bit might not be set for initial symbols (why not? -- redef as method etc) */
@@ -77131,10 +77138,10 @@ static void check_define(s7_scheme *sc)
 	    syntax_error_with_caller_nr(sc, "~A: stray dot? ~A", 17, caller, sc->code);
 	  if (!is_pair(cddr(cadr(code))))                                        /* (! f (^ (arg))) */
 	    syntax_error_with_caller_nr(sc, "~A: no body: ~A", 15, caller, sc->code);
-	  if (caadr(code) == sc->lambda_star_symbol)
+	  if ((caadr(code) == sc->lambda_func_star_symbol) || (caadr(code) == sc->lambda_proc_star_symbol)) // [c4augustus]
 	    check_lambda_star_args(sc, cadadr(code), cddr(cadr(code)), cadr(code));
 	  else check_lambda_args(sc, cadadr(code), NULL, cadr(code));
-	  optimize_lambda(sc, caadr(code) == sc->lambda_symbol, func, cadadr(code), cddr(cadr(code)));
+	  optimize_lambda(sc, (caadr(code) == sc->lambda_func_symbol) || (caadr(code) == sc->lambda_proc_symbol), func, cadadr(code), cddr(cadr(code))); // [c4augustus]
 	}}
   else
     {
@@ -77863,7 +77870,8 @@ static void check_cond(s7_scheme *sc)
 	  s7_pointer expr = car(code), f;
 	  f = caddr(expr);
 	  if ((is_proper_list_3(sc, f)) &&
-	      (car(f) == sc->lambda_symbol))
+	      ((car(f) == sc->lambda_func_symbol) || // [c4augustus]
+	       (car(f) == sc->lambda_proc_symbol)))  // [c4augustus]
 	    {
 	      s7_pointer arg = cadr(f);
 	      if ((is_pair(arg)) &&
@@ -82880,7 +82888,7 @@ static Inline void inline_apply_lambda(s7_scheme *sc)      /* -------- normal fu
 	error_nr(sc, sc->wrong_number_of_args_symbol,
 		 set_elist_5(sc, wrap_string(sc, "~S: not enough arguments: ((~S ~S ...)~{~^ ~S~})", 48),
 			     closure_name(sc, sc->code),
-			     (is_closure(sc->code)) ? sc->lambda_symbol : ((is_bacro(sc->code)) ? sc->bacro_symbol : sc->macro_symbol),
+			     (is_closure(sc->code)) ? sc->lambda_proc_symbol : ((is_bacro(sc->code)) ? sc->bacro_symbol : sc->macro_symbol), // [c4augustus]
 			     closure_args(sc->code), sc->args));
       slot = make_slot(sc, sym, T_Ext(unchecked_car(z)));
       symbol_set_local_slot(sym, id, slot);
@@ -82896,7 +82904,7 @@ static Inline void inline_apply_lambda(s7_scheme *sc)      /* -------- normal fu
 	error_nr(sc, sc->wrong_number_of_args_symbol,
 		 set_elist_5(sc, wrap_string(sc, "~S: too many arguments: ((~S ~S ...)~{~^ ~S~})", 46),
 			     closure_name(sc, sc->code),
-			     (is_closure(sc->code)) ? sc->lambda_symbol : ((is_bacro(sc->code)) ? sc->bacro_symbol : sc->macro_symbol),
+			     (is_closure(sc->code)) ? sc->lambda_proc_symbol : ((is_bacro(sc->code)) ? sc->bacro_symbol : sc->macro_symbol), // [c4augustus]
 			     closure_args(sc->code), sc->args));
     }
   else
@@ -83175,7 +83183,7 @@ static s7_pointer lambda_star_set_args(s7_scheme *sc)
 	  if (!allow_other_keys)                                 /* ((^* (a) a) :a 1 2) */
 	    error_nr(sc, sc->wrong_number_of_args_symbol,
 		     set_elist_4(sc, wrap_string(sc, "too many arguments: (~S ~S ...)~{~^ ~S~})", 41),
-				 (is_closure_star(code)) ? sc->lambda_star_symbol : ((is_bacro_star(sc->code)) ? sc->bacro_star_symbol : sc->macro_star_symbol),
+				 (is_closure_star(code)) ? sc->lambda_proc_star_symbol : ((is_bacro_star(sc->code)) ? sc->bacro_star_symbol : sc->macro_star_symbol), // [c4augustus]
 				 closure_args(code), args));
 	  /* check trailing args for repeated keys or keys with no values or values with no keys */
 	  while (is_pair(arg_vals))
@@ -88251,7 +88259,8 @@ static bool eval_car_pair(s7_scheme *sc)
     {
       if (!no_int_opt(code))
 	{
-	  if ((car(carc) == sc->lambda_symbol) &&                  /* ((^ ...) expr) */
+	  if (((car(carc) == sc->lambda_func_symbol) ||                  /* ((^ ...) expr) */
+	       (car(carc) == sc->lambda_proc_symbol)) && // [c4augustus]
 	      (is_pair(cddr(carc))) && (s7_is_proper_list(sc, cddr(carc)))) /* not dotted! */
 	    {
 	      set_opt3_pair(code, cddr(carc));
@@ -94637,8 +94646,10 @@ then returns each var to its original value."
   sc->letrec_symbol =            binder_syntax(sc, "letrec",           OP_LETREC,            int_two,  max_arity,  H_letrec);
   sc->letrec_star_symbol =       binder_syntax(sc, "letrec*",          OP_LETREC_STAR,       int_two,  max_arity,  H_letrec_star);
   sc->do_symbol =                binder_syntax(sc, "do",               OP_DO,                int_two,  max_arity,  H_do); /* 2 because body can be null */
-  sc->lambda_symbol =            binder_syntax(sc, "^",                OP_LAMBDA,            int_two,  max_arity,  H_lambda);             // [c4augustus]
-  sc->lambda_star_symbol =       binder_syntax(sc, "^*",               OP_LAMBDA_STAR,       int_two,  max_arity,  H_lambda_star);        // [c4augustus]
+  sc->lambda_func_symbol =       binder_syntax(sc, "^",                OP_LAMBDA,            int_two,  max_arity,  H_lambda);             // [c4augustus]
+  sc->lambda_func_star_symbol =  binder_syntax(sc, "^*",               OP_LAMBDA_STAR,       int_two,  max_arity,  H_lambda_star);        // [c4augustus]
+  sc->lambda_proc_symbol =       binder_syntax(sc, "&",                OP_LAMBDA,            int_two,  max_arity,  H_lambda);             // [c4augustus]
+  sc->lambda_proc_star_symbol =  binder_syntax(sc, "&*",               OP_LAMBDA_STAR,       int_two,  max_arity,  H_lambda_star);        // [c4augustus]
   sc->macro_symbol =             binder_syntax(sc, "macro",            OP_MACRO,             int_two,  max_arity,  H_macro);
   sc->macro_star_symbol =        binder_syntax(sc, "macro*",           OP_MACRO_STAR,        int_two,  max_arity,  H_macro_star);
   sc->bacro_symbol =             binder_syntax(sc, "bacro",            OP_BACRO,             int_two,  max_arity,  H_bacro);
