@@ -10,7 +10,7 @@ class APawn;
 class UInputComponent;
 class UWorld;
 
-static auto EngineOrError(
+auto EngineOrError(
   char const * const purpose,
   char const * const info
 ) -> UEngine const *;
@@ -32,7 +32,7 @@ static auto ApplyLambdaOnAllWorlds(
   std::function<void (UWorld &)> const &
 ) -> void;
 
-static auto PrimaryWorldOrError(
+auto PrimaryWorldOrError(
   char const * const purpose,
   char const * const info
 ) -> UWorld const *;
@@ -44,7 +44,7 @@ static auto MutPrimaryWorldOrError(
   return const_cast<UWorld*>(PrimaryWorldOrError(purpose, info));
 }
 
-static auto PlayerPawnOrError(
+auto PlayerPawnOrError(
   UWorld       const & world,
   int          const index,
   char const * const purpose,
@@ -60,7 +60,7 @@ static auto MutPlayerPawnOrError(
   return const_cast<APawn*>(PlayerPawnOrError(world, index, purpose, info));
 }
 
-static auto PlayerInputComponentOrError(
+auto PlayerInputComponentOrError(
   UWorld       const & world,
   int          const index,
   char const * const purpose,
@@ -75,3 +75,19 @@ static auto MutPlayerInputComponentOrError(
 ) -> UInputComponent * {
   return const_cast<UInputComponent*>(PlayerInputComponentOrError(world, index, purpose, info));
 }
+
+auto PluginSubpath(
+  FString const & pluginName,
+  FString const & subpath
+) -> FString;
+
+auto ALKUEMSCHEME_API PluginFilePath(
+  FString const & pluginName,
+  FString const & subpath,
+  FString const & filename
+) -> FString;
+
+auto ALKUEMSCHEME_API PrintStringToScreen(
+  FString const &       string,
+  UWorld  const * const world = nullptr
+) -> bool;

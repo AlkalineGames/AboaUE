@@ -9,6 +9,7 @@
 //#include "Engine/Engine.h" // TODO: @@@ UNUSED
 #include "Components/InputComponent.h"
 #include "Kismet/GameplayStatics.h" // for GetPlayerPawn()
+#include "Kismet/KismetSystemLibrary.h" // for PrintString(...)
 //#include "UnrealEdGlobals.h" // TODO: @@@ UNUSED
 
 #include <set>
@@ -18,7 +19,7 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogAlkUeHelper, Log, All);
 DEFINE_LOG_CATEGORY(LogAlkUeHelper);
 
-static auto EngineOrError(
+auto EngineOrError(
   char const * const purpose,
   char const * const info
 ) -> UEngine const * {
@@ -93,7 +94,7 @@ static auto ApplyLambdaOnAllWorlds(
     });
 }
 
-static auto PrimaryWorldOrError(
+auto PrimaryWorldOrError(
   char const * const purpose,
   char const * const info
 ) -> UWorld const * {
@@ -125,7 +126,7 @@ static auto PrimaryWorldOrError(
   return mutPrimary;
 }
 
-static auto PlayerPawnOrError(
+auto PlayerPawnOrError(
   UWorld       const & world,
   int          const index,
   char const * const purpose,
@@ -140,7 +141,7 @@ static auto PlayerPawnOrError(
   return pawn;
 }
 
-static auto PlayerInputComponentOrError(
+auto PlayerInputComponentOrError(
   UWorld       const & world,
   int          const index,
   char const * const purpose,
@@ -155,4 +156,45 @@ static auto PlayerInputComponentOrError(
       ANSI_TO_TCHAR(purpose),
       ANSI_TO_TCHAR(info));
   return input;
+}
+
+auto PluginSubpath(
+  FString const & pluginName,
+  FString const & subpath
+) -> FString {
+  return FPaths::ConvertRelativePathToFull(
+    FPaths::Combine(FPaths::ProjectPluginsDir(), *pluginName, *subpath));
+}
+
+auto PluginFilePath(
+  FString const & pluginName,
+  FString const & subpath,
+  FString const & filename
+) -> FString {
+  return FPaths::ConvertRelativePathToFull(
+    FPaths::Combine(pluginSubpath(*pluginName, *subpath), *filename));
+}
+
+static auto const name_PrintStringToScreen = "PrintStringToScreen";
+auto
+PrintStringToScreen(
+  FString const &       string,
+  UWorld  const * const world
+) -> bool {
+  auto wor = world;
+  if (!wor) {
+    wor = PrimaryWorldOrError(
+      name_PrintStringToScreen,
+      TCHAR_TO_ANSI(*string));
+    if (!wor)
+      return false;
+  }
+#if ALK_TRACING
+  UE_LOG(LogAlkUeHelper, Display, TEXT("TRACE C++ %s world %s \"%s\""),
+    ANSI_TO_TCHAR(name_PrintStringToScreen),
+    *(wor->OriginalWorldName.ToString()),
+    *string);
+#endif
+  UKismetSystemLibrary::PrintString(wor, string);
+  return true;
 }
