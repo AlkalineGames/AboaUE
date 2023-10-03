@@ -32,4 +32,9 @@ auto loadSchemeUeCode(
 
 auto runSchemeUeCode(
   AlkSchemeUeMutant const &mutant,
-  AlkSchemeUeCode const &code) -> FString;
+  AlkSchemeUeCode   const &code) -> FString;
+
+auto ALKUEMSCHEME_API runCachedSchemeUeCodeAtPath(
+  FString const & path,
+  bool forceReload = false) -> FString;
+  // ^ caches and auto-loads observed file changes

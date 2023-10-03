@@ -10,12 +10,20 @@
 
 #include <Modules/ModuleInterface.h>
 
+#include <map>
 #include <memory>
 
 class FAlkUemScheme : public IModuleInterface {
 public:
-    virtual void StartupModule() override;
-    virtual void ShutdownModule() override;
+  virtual void StartupModule() override;
+  virtual void ShutdownModule() override;
+
+  auto runCodeAtPath(
+    FString const & path,
+    bool forceReload = false) -> FString;
+    // ^ caches and auto-loads observed file changes
+
 private:
-    std::unique_ptr<AlkSchemeUeMutant> alkSchemeUeMutant;
+  std::unique_ptr<AlkSchemeUeMutant> sessionMutant;
+  std::map<FString, AlkSchemeUeCode> codeCacheMutant;
 };
