@@ -12,7 +12,6 @@
 
 #include "Components/InputComponent.h"
 #include "HAL/PlatformFileManager.h"
-#include "Kismet/KismetSystemLibrary.h" // for PrintString(...)
 #include "Misc/FileHelper.h"
 
 #include <array>
@@ -345,18 +344,13 @@ ue_print_string(s7_scheme * s7, s7_pointer args) -> s7_pointer {
     s7, s7_cadr(args), 2, "string");
   if (argstring.index() == 1)
     return std::get<1>(argstring).pointer;
-  auto string = FString(ANSI_TO_TCHAR(std::get<0>(argstring)));
-#if ALK_TRACING
-  UE_LOG(LogAlkScheme, Display, TEXT("TRACE C++ %s world %s \"%s\""),
-    ANSI_TO_TCHAR(name_ue_print_string),
-    *(world->OriginalWorldName.ToString()),
-    *string);
-#endif
-  UKismetSystemLibrary::PrintString(world, string);
+  PrintStringToScreen(
+    FString(ANSI_TO_TCHAR(std::get<0>(argstring))),
+    world);
   return s7_t(s7);
 }
 
-auto function_help_string(
+static auto function_help_string(
   char const * const name,
   char const * const args
 ) -> std::string {
@@ -382,9 +376,9 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
     name_ue_print_string, ue_print_string, 2, 0, false,
     function_help_string(name_ue_print_string, " world string)").c_str());
 
-  FString const scmPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(
-      FPaths::ProjectPluginsDir(),
-      TEXT("AlkalineSchemeUE"), TEXT("Source"), TEXT("aboa")));
+  FString const scmPath = PluginSubpath(
+    ANSI_TO_TCHAR("AlkalineSchemeUE"),
+    ANSI_TO_TCHAR("Source/aboa"));
 #if ALK_TRACING
   UE_LOG(LogAlkScheme, Display,
     TEXT("BEGIN listing scm path %s"), *scmPath);

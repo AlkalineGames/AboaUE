@@ -172,7 +172,7 @@ auto PluginFilePath(
   FString const & filename
 ) -> FString {
   return FPaths::ConvertRelativePathToFull(
-    FPaths::Combine(pluginSubpath(*pluginName, *subpath), *filename));
+    FPaths::Combine(PluginSubpath(*pluginName, *subpath), *filename));
 }
 
 static auto const name_PrintStringToScreen = "PrintStringToScreen";
