@@ -19,17 +19,18 @@ void FAlkUemScheme::ShutdownModule() {
 }
 
 auto FAlkUemScheme::runCodeAtPath(
-  FString const & path,
-  bool forceReload
-) -> FString {
+  FString             const & path,
+  AlkSchemeUeDataDict const & args,
+  bool                        forceReload
+) -> AlkSchemeUeDataDict {
   auto codeiter = codeCacheMutant.find(path);
   if (codeiter == codeCacheMutant.end() || forceReload) {
     auto code = loadSchemeUeCode(path);
     codeCacheMutant.emplace(
       std::make_pair(path, code)); // TODO: $$$ OPTIMIZE COPIES
-    return runSchemeUeCode(*sessionMutant, code);
+    return runSchemeUeCode(*sessionMutant, code, args);
   } else
-    return runSchemeUeCode(*sessionMutant, codeiter->second);
+    return runSchemeUeCode(*sessionMutant, codeiter->second, args);
 }
 
 static
@@ -38,10 +39,12 @@ auto accessAlkUemSchemeMutant() -> FAlkUemScheme * {
 }
 
 auto runCachedSchemeUeCodeAtPath( // declaration in alk-scheme-ue.h
-  FString const & path,
-  bool forceReload
-) -> FString {
+  FString             const & path,
+  AlkSchemeUeDataDict const & args,
+  bool                        forceReload
+) -> AlkSchemeUeDataDict {
   auto uem = accessAlkUemSchemeMutant();
-  return uem ? uem->runCodeAtPath(path, forceReload)
-             : TEXT("## Failed to access AlkUemScheme");
+  return uem ? uem->runCodeAtPath(path, args, forceReload)
+             : // TODO: TEXT("## Failed to access AlkUemScheme");
+               AlkSchemeUeDataDict();
 }

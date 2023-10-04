@@ -397,8 +397,9 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
   auto const code = loadSchemeUeCode(
     FPaths::Combine(scmPath, TEXT("boot.aboa")));
   if (!code.source.IsEmpty()) {
-    auto result = runSchemeUeCode(mutant, code);
-    UE_LOG(LogAlkScheme, Log, TEXT("Scheme session booted: %s"), *result);
+    auto results = runSchemeUeCode(mutant, code);
+    UE_LOG(LogAlkScheme, Log, TEXT("Scheme session booted: %s"),
+      *stringFromSchemeUeDataDict(results));
   }
   return mutant;
 }
@@ -411,10 +412,14 @@ auto loadSchemeUeCode(FString const &path) -> AlkSchemeUeCode {
 }
 
 auto runSchemeUeCode(
-  AlkSchemeUeMutant const &mutant,
-  AlkSchemeUeCode const &code
-) -> FString {
+  AlkSchemeUeMutant   const & mutant,
+  AlkSchemeUeCode     const & code,
+  AlkSchemeUeDataDict const & args
+) -> AlkSchemeUeDataDict {
   auto s7obj = s7_eval_c_string(
     mutant.s7session, TCHAR_TO_ANSI(*code.source));
-  return ANSI_TO_TCHAR(s7_object_to_c_string(mutant.s7session, s7obj));
+  return makeSchemeUeDataDict({
+    { "result",
+      std::any(ANSI_TO_TCHAR(s7_object_to_c_string(mutant.s7session, s7obj))),
+      AlkSchemeUeDataType::String }});
 }

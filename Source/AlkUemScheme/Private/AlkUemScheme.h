@@ -19,8 +19,10 @@ public:
   virtual void ShutdownModule() override;
 
   auto runCodeAtPath(
-    FString const & path,
-    bool forceReload = false) -> FString;
+    FString             const & path,
+    AlkSchemeUeDataDict const & args = AlkSchemeUeDataDict(),
+    bool                        forceReload = false
+  ) -> AlkSchemeUeDataDict;
     // ^ caches and auto-loads observed file changes
 
 private:
