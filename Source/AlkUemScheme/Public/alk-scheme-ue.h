@@ -34,22 +34,6 @@ struct AlkSchemeUeDataArg {
 typedef std::map<FString, AlkSchemeUeDataRef>
   AlkSchemeUeDataDict;
 
-auto makeSchemeUeDataDict(
-  std::initializer_list<AlkSchemeUeDataArg> const & args
-) -> AlkSchemeUeDataDict {
-  auto dict = AlkSchemeUeDataDict();
-  for (auto arg : args)
-    dict.emplace(std::make_pair(
-      arg.name, AlkSchemeUeDataRef {arg.ref, arg.type}));
-  return dict;
-}
-
-auto stringFromSchemeUeDataDict(
-  AlkSchemeUeDataDict const & dict
-) -> FString {
-  return "TODO stringFromSchemeUeDataDict(...)";
-}
-
 struct AlkSchemeUeState {
   FString const scmPath;
 };
@@ -72,6 +56,16 @@ auto runSchemeUeCode(
   AlkSchemeUeCode     const & code,
   AlkSchemeUeDataDict const & args = AlkSchemeUeDataDict()
 ) -> AlkSchemeUeDataDict;
+
+auto ALKUEMSCHEME_API
+makeSchemeUeDataDict(
+  std::initializer_list<AlkSchemeUeDataArg> const &
+) -> AlkSchemeUeDataDict;
+
+auto ALKUEMSCHEME_API
+stringFromSchemeUeDataDict(
+  AlkSchemeUeDataDict const &
+) -> FString;
 
 auto ALKUEMSCHEME_API
 runCachedSchemeUeCodeAtPath(

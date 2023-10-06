@@ -15,6 +15,7 @@
 #include "Misc/FileHelper.h"
 
 #include <array>
+#include <stack>
 #include <string_view>
 #include <variant>
 
@@ -138,11 +139,26 @@ scheme_arg_world(
 static auto
 scheme_ue_vector(
   s7_scheme * const s7,
-  FVector const & vec
+  FVector     const & vec
 ) -> s7_pointer {
-  double const v[] = {vec.X, vec.Y, vec.Z};
-  return s7_make_float_vector_wrapper(
-    s7, 3, const_cast<double *>(v), 1, NULL, false); // !!! CONST CAST
+  auto s7vec = s7_make_float_vector(s7, 3, 1, nullptr);
+  s7_float_vector_set(s7vec, 0, vec.X);
+  s7_float_vector_set(s7vec, 1, vec.Y);
+  s7_float_vector_set(s7vec, 2, vec.Z);
+  //UE_LOG(LogAlkScheme, Warning, TEXT("scheme_ue_vector %f %f %f"), vec.X, vec.Y, vec.Z);
+  return s7vec;
+}
+
+static auto
+scheme_ue_vector_array(
+  s7_scheme *     const s7,
+  TArray<FVector> const & uevecarray
+) -> s7_pointer {
+  auto s7vec = s7_make_vector(s7, uevecarray.Num());
+  int i = 0;
+  for (auto & uevec : uevecarray)
+    s7_vector_set(s7, s7vec, i++, scheme_ue_vector(s7, uevec));
+  return s7vec;
 }
 
 static auto
@@ -354,7 +370,7 @@ static auto function_help_string(
   char const * const name,
   char const * const args
 ) -> std::string {
-    return std::string("(") + name + args + ")";
+  return std::string("(") + name + args + ")";
 }
 
 auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
@@ -416,10 +432,58 @@ auto runSchemeUeCode(
   AlkSchemeUeCode     const & code,
   AlkSchemeUeDataDict const & args
 ) -> AlkSchemeUeDataDict {
+  std::stack<s7_int> s7protectstack;
+  for (auto & arg : args) {
+    auto & key = arg.first;
+    auto & ref = arg.second;
+    s7_pointer s7value = s7_nil(mutant.s7session);
+    switch (ref.type) {
+      case AlkSchemeUeDataType::Bool :
+        // TODO: ### IMPLEMENT TYPE
+        break;
+      case AlkSchemeUeDataType::String :
+        // TODO: ### IMPLEMENT TYPE
+        break;
+      case AlkSchemeUeDataType::Vector :
+        s7value = scheme_ue_vector(
+          mutant.s7session, std::any_cast<FVector>(ref.ref));
+        break;
+      case AlkSchemeUeDataType::VectorArray :
+        s7value = scheme_ue_vector_array(
+          mutant.s7session, std::any_cast<TArray<FVector> >(ref.ref));
+        break;
+    }
+    //UE_LOG(LogAlkScheme, Error, TEXT("s7_define_variable %s %d"), *arg.first, &ref.ref)
+    s7protectstack.push(
+      s7_gc_protect(mutant.s7session,
+        s7_define_constant(mutant.s7session,
+          TCHAR_TO_ANSI(*key), s7value)));
+  }
   auto s7obj = s7_eval_c_string(
     mutant.s7session, TCHAR_TO_ANSI(*code.source));
-  return makeSchemeUeDataDict({
+  auto result = makeSchemeUeDataDict({
     { "result",
       std::any(ANSI_TO_TCHAR(s7_object_to_c_string(mutant.s7session, s7obj))),
       AlkSchemeUeDataType::String }});
+  while (!s7protectstack.empty()) {
+    s7_gc_unprotect_at(mutant.s7session, s7protectstack.top());
+    s7protectstack.pop();
+  }
+  return result;
+}
+
+auto makeSchemeUeDataDict(
+  std::initializer_list<AlkSchemeUeDataArg> const & args
+) -> AlkSchemeUeDataDict {
+  auto dict = AlkSchemeUeDataDict();
+  for (auto & arg : args)
+    dict.emplace(std::make_pair(
+      arg.name, AlkSchemeUeDataRef {arg.ref, arg.type}));
+  return dict;
+}
+
+auto stringFromSchemeUeDataDict(
+  AlkSchemeUeDataDict const & dict
+) -> FString {
+  return "TODO stringFromSchemeUeDataDict(...)";
 }
