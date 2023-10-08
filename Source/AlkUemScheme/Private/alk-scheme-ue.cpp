@@ -446,14 +446,14 @@ auto runSchemeUeCode(
         break;
       case AlkSchemeUeDataType::Vector :
         s7value = scheme_ue_vector(
-          mutant.s7session, std::any_cast<FVector>(ref.ref));
+          mutant.s7session, std::any_cast<FVector>(ref.any));
         break;
       case AlkSchemeUeDataType::VectorArray :
         s7value = scheme_ue_vector_array(
-          mutant.s7session, std::any_cast<TArray<FVector> >(ref.ref));
+          mutant.s7session, std::any_cast<TArray<FVector> >(ref.any));
         break;
     }
-    //UE_LOG(LogAlkScheme, Error, TEXT("s7_define_variable %s %d"), *arg.first, &ref.ref)
+    //UE_LOG(LogAlkScheme, Error, TEXT("s7_define_variable %s %d"), *arg.first, &ref.any)
     s7protectstack.push(
       s7_gc_protect(mutant.s7session,
         s7_define_constant(mutant.s7session,
@@ -478,7 +478,7 @@ auto makeSchemeUeDataDict(
   auto dict = AlkSchemeUeDataDict();
   for (auto & arg : args)
     dict.emplace(std::make_pair(
-      arg.name, AlkSchemeUeDataRef {arg.ref, arg.type}));
+      arg.name, AlkSchemeUeDataRef {arg.any, arg.type}));
   return dict;
 }
 

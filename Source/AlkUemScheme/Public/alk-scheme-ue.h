@@ -21,13 +21,13 @@ enum struct AlkSchemeUeDataType {
 };
 
 struct AlkSchemeUeDataRef {
-  std::any const &    ref;
+  std::any const      any;
   AlkSchemeUeDataType type;
 };
 
 struct AlkSchemeUeDataArg {
-  FString const       name;
-  std::any const &    ref;
+  FString  const      name;
+  std::any const      any;
   AlkSchemeUeDataType type;
 };
 
