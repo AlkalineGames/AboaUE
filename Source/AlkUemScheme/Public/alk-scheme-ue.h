@@ -64,7 +64,8 @@ makeSchemeUeDataDict(
 
 auto ALKUEMSCHEME_API
 stringFromSchemeUeDataDict(
-  AlkSchemeUeDataDict const &
+  AlkSchemeUeDataDict const & dict,
+  FString             const & key
 ) -> FString;
 
 auto ALKUEMSCHEME_API

@@ -415,7 +415,9 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
   if (!code.source.IsEmpty()) {
     auto results = runSchemeUeCode(mutant, code);
     UE_LOG(LogAlkScheme, Log, TEXT("Scheme session booted: %s"),
-      *stringFromSchemeUeDataDict(results));
+      "TODO: ### dump results as a string"
+      //*stringFromSchemeUeDataDict(results, "result")
+    );
   }
   return mutant;
 }
@@ -482,8 +484,47 @@ auto makeSchemeUeDataDict(
   return dict;
 }
 
+static void logErrorMap(
+  char const * const   errorText,
+  char const * const   callerName,
+  FString      const & key
+) {
+  UE_LOG(LogAlkScheme, Error,
+    TEXT("%s %s(map, \"%s\")"),
+    ANSI_TO_TCHAR(errorText),
+    ANSI_TO_TCHAR(callerName),
+    *key);
+}
+
+static auto schemeUeDataRefInDict(
+  char const *        const   callerName,
+  AlkSchemeUeDataDict const & dict,
+  FString             const & key,
+  AlkSchemeUeDataType         type
+) -> AlkSchemeUeDataRef const * {
+  auto iter = dict.find(key);
+  if (iter == dict.end())
+    logErrorMap("Failed to find", callerName, key);
+  else if (iter->second.type != type)
+    logErrorMap("Wrong type for", callerName, key);
+  else
+    return &iter->second;
+  return nullptr;
+}
+
 auto stringFromSchemeUeDataDict(
-  AlkSchemeUeDataDict const & dict
+  AlkSchemeUeDataDict const & dict,
+  FString             const & key
 ) -> FString {
-  return "TODO stringFromSchemeUeDataDict(...)";
+  auto refOrNull = schemeUeDataRefInDict(
+    "stringFromSchemeUeDataDict", dict, key,
+    AlkSchemeUeDataType::String);
+  if (refOrNull) {
+    //UE_LOG(LogAlkScheme, Warning,
+    //  TEXT("stringFromSchemeUeDataDict ref->any has_value=%s, type=%s"),
+    //  ANSI_TO_TCHAR(refOrNull->any.has_value() ? "true " : "false"),
+    //  ANSI_TO_TCHAR(refOrNull->any.type().name()));
+    return std::any_cast<FString>(refOrNull->any);
+  }
+  return FString();
 }
