@@ -69,6 +69,12 @@ stringFromSchemeUeDataDict(
 ) -> FString;
 
 auto ALKUEMSCHEME_API
+vectorArrayFromSchemeUeDataDict(
+  AlkSchemeUeDataDict const & dict,
+  FString             const & key
+) -> TArray<FVector>;
+
+auto ALKUEMSCHEME_API
 runCachedSchemeUeCodeAtPath(
   FString             const & path,
   AlkSchemeUeDataDict const & args = AlkSchemeUeDataDict(),

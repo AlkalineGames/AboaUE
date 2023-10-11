@@ -528,3 +528,15 @@ auto stringFromSchemeUeDataDict(
   }
   return FString();
 }
+
+auto vectorArrayFromSchemeUeDataDict(
+  AlkSchemeUeDataDict const & dict,
+  FString             const & key
+) -> TArray<FVector> {
+  auto refOrNull = schemeUeDataRefInDict(
+    "vectorArrayFromSchemeUeDataDict", dict, key,
+    AlkSchemeUeDataType::VectorArray);
+  if (refOrNull)
+    return std::any_cast<TArray<FVector> >(refOrNull->any);
+  return TArray<FVector>();
+}
