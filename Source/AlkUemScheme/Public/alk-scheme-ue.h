@@ -54,6 +54,7 @@ auto loadSchemeUeCode(
 auto runSchemeUeCode(
   AlkSchemeUeMutant   const & mutant,
   AlkSchemeUeCode     const & code,
+  FString             const & callee = "",
   AlkSchemeUeDataDict const & args = AlkSchemeUeDataDict()
 ) -> AlkSchemeUeDataDict;
 
@@ -77,6 +78,7 @@ vectorArrayFromSchemeUeDataDict(
 auto ALKUEMSCHEME_API
 runCachedSchemeUeCodeAtPath(
   FString             const & path,
+  FString             const & callee,
   AlkSchemeUeDataDict const & args = AlkSchemeUeDataDict(),
   bool                        forceReload = false
 ) -> AlkSchemeUeDataDict;

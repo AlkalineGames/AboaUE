@@ -432,9 +432,13 @@ auto loadSchemeUeCode(FString const &path) -> AlkSchemeUeCode {
 auto runSchemeUeCode(
   AlkSchemeUeMutant   const & mutant,
   AlkSchemeUeCode     const & code,
+  FString             const & callee,
   AlkSchemeUeDataDict const & args
 ) -> AlkSchemeUeDataDict {
-  std::stack<s7_int> s7protectstack;
+  bool const willCall = !callee.IsEmpty();
+  std::string mutCallExpr = "(";
+  mutCallExpr += TCHAR_TO_ANSI(*callee);
+  std::stack<s7_int> mutProtectStack;
   for (auto & arg : args) {
     auto & key = arg.first;
     auto & ref = arg.second;
@@ -456,20 +460,35 @@ auto runSchemeUeCode(
         break;
     }
     //UE_LOG(LogAlkScheme, Error, TEXT("s7_define_variable %s %d"), *arg.first, &ref.any)
-    s7protectstack.push(
+    auto argName = std::string(willCall ? "arg--" : "")
+                 + TCHAR_TO_ANSI(*key);
+    if (willCall) {
+      mutCallExpr += " " ;
+      mutCallExpr += argName;
+    }
+    mutProtectStack.push(
       s7_gc_protect(mutant.s7session,
-        s7_define_constant(mutant.s7session,
-          TCHAR_TO_ANSI(*key), s7value)));
+        s7_define_constant(mutant.s7session, argName.c_str(), s7value)));
   }
   auto s7obj = s7_eval_c_string(
     mutant.s7session, TCHAR_TO_ANSI(*code.source));
+  // ### TODO: CONVERT FAILURE RESULT
+  if (willCall) {
+    mutCallExpr += ')';
+    s7obj = s7_eval_c_string(mutant.s7session, mutCallExpr.c_str());
+    // ### TODO: CONVERT FAILURE RESULT
+  }
   auto result = makeSchemeUeDataDict({
     { "result",
-      std::any(ANSI_TO_TCHAR(s7_object_to_c_string(mutant.s7session, s7obj))),
+      std::any(
+          //s7_is_string(s7obj) ?
+            FString(ANSI_TO_TCHAR(s7_object_to_c_string(mutant.s7session, s7obj)))
+        //: s7_is_vector(s7obj) ?
+      ),
       AlkSchemeUeDataType::String }});
-  while (!s7protectstack.empty()) {
-    s7_gc_unprotect_at(mutant.s7session, s7protectstack.top());
-    s7protectstack.pop();
+  while (!mutProtectStack.empty()) {
+    s7_gc_unprotect_at(mutant.s7session, mutProtectStack.top());
+    mutProtectStack.pop();
   }
   return result;
 }
