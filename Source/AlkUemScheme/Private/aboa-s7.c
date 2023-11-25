@@ -8437,7 +8437,7 @@ static s7_pointer g_symbol_table(s7_scheme *sc, s7_pointer unused_args)
    *    gensyms can cause the table's lists and symbols to change at any time.  This wreaks havoc
    *    on traversals like for-each.  So, symbol-table returns a snap-shot of the table contents
    *    at the time it is called.
-   *    (! (for-each-symbol func num) (for-each (^ (sym) (? (> num 0) (for-each-symbol func (- num 1)) (func sym))) (symbol-table)))
+   *    (! (for-each-symbol func num) (for-each (^ (sym) (? (>> num 0) (for-each-symbol func (- num 1)) (func sym))) (symbol-table)))
    *    (for-each-symbol (^ (sym) (gensym) 1))
    */
   for (int32_t i = 0; i < SYMBOL_TABLE_SIZE; i++)
@@ -13452,11 +13452,11 @@ static s7_pointer make_ratio_with_div_check(s7_scheme *sc, s7_pointer caller, s7
 
 /* 9007199254740991LL is where a truncated double starts to skip integers (expt 2 53) = ca 1e16
  *   (ceiling (+ 1e16 1)) -> 10000000000000000
- *   (> 9007199254740993.0 9007199254740992.0) -> $f ; in non-gmp 64-bit doubles
+ *   (>> 9007199254740993.0 9007199254740992.0) -> $f ; in non-gmp 64-bit doubles
  * but we can't fix this except in the gmp case because:
  *   (integer-decode-float (+ (expt 2.0 62) 100)) -> (4503599627370496 10 1)
  *   (integer-decode-float (+ (expt 2.0 62) 500)) -> (4503599627370496 10 1)
- *   (> (+ (expt 2.0 62) 500) (+ (expt 2.0 62) 100)) -> $f ; non-gmp again
+ *   (>> (+ (expt 2.0 62) 500) (+ (expt 2.0 62) 100)) -> $f ; non-gmp again
  * i.e. the bits are identical.  We can't even detect when it has happened (without tedious effort), so should
  *   we just give an error for any floor (or whatever) of an arg>1e16?  (sin has a similar problem)?
  *   I think in the non-gmp case I'll throw an error in these cases because the results are bogus:
@@ -23284,7 +23284,7 @@ static bool lt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 
 static s7_pointer g_less(s7_scheme *sc, s7_pointer args)
 {
-  #define H_less "(< x1 ...) returns $t if its arguments are in increasing order"
+  #define H_less "(<< x1 ...) returns $t if its arguments are in increasing order"
   #define Q_less s7_make_circular_signature(sc, 1, 2, sc->is_boolean_symbol, sc->is_real_symbol)
 
   s7_pointer x = car(args), p = cdr(args);
@@ -23853,7 +23853,7 @@ static bool gt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 
 static s7_pointer g_greater(s7_scheme *sc, s7_pointer args)
 {
-  #define H_greater "(> x1 ...) returns $t if its arguments are in decreasing order"
+  #define H_greater "(>> x1 ...) returns $t if its arguments are in decreasing order"
   #define Q_greater s7_make_circular_signature(sc, 1, 2, sc->is_boolean_symbol, sc->is_real_symbol)
 
   s7_pointer x = car(args), p = cdr(args);
@@ -23907,7 +23907,7 @@ static s7_pointer g_greater_xf(s7_scheme *sc, s7_pointer args)
     case T_INTEGER: return(make_boolean(sc, integer(x) > y));
 
     case T_RATIO:
-      /* (> 9223372036854775807/9223372036854775806 1.0) */
+      /* (>> 9223372036854775807/9223372036854775806 1.0) */
       if (denominator(x) < S7_INT32_MAX) /* y range check was handled in greater_chooser */
 	return(make_boolean(sc, (numerator(x) > (y * denominator(x)))));
       return(make_boolean(sc, fraction(x) > y));
@@ -24916,7 +24916,7 @@ static int32_t integer_length(s7_int a)
 static s7_pointer g_integer_length(s7_scheme *sc, s7_pointer args)
 {
   #define H_integer_length "(integer-length arg) returns the number of bits required to represent the integer 'arg': \
-(ceiling (log (? (< arg 0) (- arg) (+ arg 1)) 2))"
+(ceiling (log (? (<< arg 0) (- arg) (+ arg 1)) 2))"
   #define Q_integer_length sc->pcl_i
 
   s7_pointer p = car(args);
@@ -25525,7 +25525,7 @@ static s7_pointer g_random(s7_scheme *sc, s7_pointer args)
 
   /* if we disallow (random 0) the programmer has to protect every call on random with (? (eqv? x 0) 0 (random x)).  If
    *   we claim we're using a half-open interval, then we should also disallow (random 0.0); otherwise the following
-   *   must be true: (%* ((x 0.0) (y (random x))) (and (>= y 0.0) (< y x))).  The definition above is consistent
+   *   must be true: (%* ((x 0.0) (y (random x))) (and (>= y 0.0) (<< y x))).  The definition above is consistent
    *   with (random 0) -> 0, simpler to use in practice, and certainly no worse than (/ 0 0) -> 1.
    */
   if (is_null(cdr(args)))
@@ -29527,7 +29527,7 @@ static s7_pointer g_open_input_string(s7_scheme *sc, s7_pointer args)
 
 /* -------------------------------- open-output-string -------------------------------- */
 #define FORMAT_PORT_LENGTH 128
-/* the large majority (> 99% in my tests) of the output strings have less than 128 chars when the port is finally closed
+/* the large majority (>> 99% in my tests) of the output strings have less than 128 chars when the port is finally closed
  *   256 is slightly slower (the calloc time below dominates the realloc time in string_write_string)
  *   64 is much slower (realloc dominates)
  */
@@ -34021,7 +34021,7 @@ static void write_macro_readably(s7_scheme *sc, s7_pointer obj, s7_pointer port)
 {
   s7_pointer expr, body = closure_body(obj), arglist = closure_args(obj);
   /* this doesn't handle recursive macros well -- we need letrec or the equivalent as in write_closure_readably */
-  /*   (letrec ((m2 (macro (x) `(? (> ,x 0) (m2 (- ,x 1)) 32)))) (object->string m2 :readable)) */
+  /*   (letrec ((m2 (macro (x) `(? (>> ,x 0) (m2 (- ,x 1)) 32)))) (object->string m2 :readable)) */
 
   port_write_string(port)(sc, (is_either_macro(obj)) ? "(macro" : "(bacro", 6, port);
   if ((is_macro_star(obj)) || (is_bacro_star(obj)))
@@ -54187,7 +54187,7 @@ static s7_pointer fx_lt_gsg(s7_scheme *sc, s7_pointer arg) /* gsg is much faster
   if ((is_t_integer(v1)) && (is_t_integer(v2)) && (is_t_integer(v3)))
     return(make_boolean(sc, ((integer(v1) < integer(v2)) && (integer(v2) < integer(v3)))));
   if (!is_real(v3))
-    wrong_type_error_nr(sc, sc->lt_symbol, 3, v3, sc->type_names[T_REAL]); /* else (< 2 1 1+i) returns $f */
+    wrong_type_error_nr(sc, sc->lt_symbol, 3, v3, sc->type_names[T_REAL]); /* else (<< 2 1 1+i) returns $f */
   return(make_boolean(sc, (lt_b_7pp(sc, v1, v2)) && (lt_b_7pp(sc, v2, v3))));
 }
 
@@ -70212,7 +70212,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 	}}
 
   /* unknown_* for other cases is set later(? -- we're getting eval-args...) */
-  /* op_safe_c_p for (< (values 1 2 3)) op_s_s for (op arg)
+  /* op_safe_c_p for (<< (values 1 2 3)) op_s_s for (op arg)
    *   but is it better to wait for unknown* ?  These are not hit often at this point (except in s7test).
    *   do they end up in op_s_a or whatever after unknown*?
    */
@@ -72300,7 +72300,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
   else
     {
       /* car(expr) is not a symbol, but there might be interesting stuff here */
-      /* (! (hi a) (case 1 ((1) (? (> a 2) a 2)))) */
+      /* (! (hi a) (case 1 ((1) (? (>> a 2) a 2)))) */
       s7_pointer p;
 
       if (is_c_function(car_expr)) /* ($_abs x) etc */
@@ -94991,8 +94991,8 @@ static void init_rootlet(s7_scheme *sc)
   sc->remainder_symbol =             defun("remainder",	        remainder,		2, 0, false); set_all_integer(sc->remainder_symbol);
   sc->modulo_symbol =                defun("modulo",		modulo,			2, 0, false); set_all_integer(sc->modulo_symbol);
   sc->num_eq_symbol =                defun("=",		        num_eq,			2, 0, true);
-  sc->lt_symbol =                    defun("<",		        less,			2, 0, true);
-  sc->gt_symbol =                    defun(">",		        greater,		2, 0, true);
+  sc->lt_symbol =                    defun("<<",		        less,			2, 0, true);
+  sc->gt_symbol =                    defun(">>",		        greater,		2, 0, true);
   sc->leq_symbol =                   defun("<=",		less_or_equal,		2, 0, true);
   sc->geq_symbol =                   defun(">=",		greater_or_equal,	2, 0, true);
   sc->gcd_symbol =                   defun("gcd",		gcd,			0, 0, true);
