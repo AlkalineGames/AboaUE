@@ -366,6 +366,18 @@ ue_print_string(s7_scheme * s7, s7_pointer args) -> s7_pointer {
   return s7_t(s7);
 }
 
+static auto const name_ue_print_string_primary = "ue-print-string-primary";
+static auto
+ue_print_string_primary(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argstring = scheme_arg_string_or_error(
+    s7, s7_car(args), 1, "string");
+  if (argstring.index() == 1)
+    return std::get<1>(argstring).pointer;
+  PrintStringToScreen(
+    FString(ANSI_TO_TCHAR(std::get<0>(argstring))));
+  return s7_t(s7);
+}
+
 static auto function_help_string(
   char const * const name,
   char const * const args
@@ -391,6 +403,9 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
   s7_define_function(s7session,
     name_ue_print_string, ue_print_string, 2, 0, false,
     function_help_string(name_ue_print_string, " world string)").c_str());
+  s7_define_function(s7session,
+    name_ue_print_string_primary, ue_print_string_primary, 1, 0, false,
+    function_help_string(name_ue_print_string_primary, " string)").c_str());
 
   FString const scmPath = PluginSubpath(
     ANSI_TO_TCHAR("AlkalineSchemeUE"),
