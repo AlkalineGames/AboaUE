@@ -7,38 +7,41 @@
 # AlkalineScemeUE boot program
 
 ( ## TODO: @@@ NEEDS TO BE A LIST OF EXPRESSIONS FOR NOW
-(ue-log "TRACE SCHEME >>> BEGIN booting AlkalineSchemeUE")
+(~ tracing-to-log $t)
+(~ tracing-to-print $f)
 
-(~ tracing-to-log $f)
-(~ tracing-to-print $t)
+(< (trace val)
+  (? (or tracing-to-log tracing-to-print)
+    (apply (? tracing-to-print
+             ue-print-string-primary
+             ue-log)
+      (list (format $f "## boot.aboa: ~A" val)))))
 
-(! (hook-player-input world device action durations func)
+(trace "BEGIN booting AlkalineSchemeUE..")
+
+(< (hook-player-input world device action durations func)
   ## TODO: @@@ ASSUMING 'pointing DEVICE
-  ##(ue-log "TRACE SCHEME >>> BEGIN hook-input")
-  (! (trace-event event finger location)
-    (@ ((info (format $f "TRACE SCHEME >>> ^S finger ^S at ^S" event finger location)))
-      (? tracing-to-log   (ue-log info))
-      (? tracing-to-print (ue-print-string world info))))
+  (< (trace-event event finger location)
+    (trace (format $f "^S finger ^S at ^S" event finger location)))
   (ue-bind-input-touch world 'pressed
     (& (finger location) (trace-event "pressed" finger location)))
   (ue-bind-input-touch world 'released
     (& (finger location) (trace-event "released" finger location)))
   (ue-bind-input-touch world 'repeated
     (& (finger location) (trace-event "repeated" finger location))))
-  ##(ue-log "TRACE SCHEME <<< END hook-input"))
 
-(! (open-scheme-editor screen-pos)
+(< (open-scheme-editor screen-pos)
   ## TODO: ### IMPLEMENT
-  (? tracing-to-log (ue-log (format $f "TRACE SCHEME (open-scheme-editor ^S)" screen-pos))))
+  (trace (format $f "(open-scheme-editor ^S)" screen-pos)))
 
 (ue-hook-on-world-begin-play
   (& (world)
-    ##(ue-log "TRACE SCHEME lambda from (ue-hook-on-world-initialized-actors)")
+    (trace "lambda from (ue-hook-on-world-initialized-actors)")
     (ue-print-string world "Alkaline Scheme is alive")
     (hook-player-input world 'pointing 'press '(200 0 200 0)
       (& (screen-pos) (open-scheme-editor screen-pos)))))
 
-(ue-log "TRACE SCHEME <<< END booting AlkalineSchemeUE")
+(trace "..END booting AlkalineSchemeUE")
 )
-## TODO: ### s7_eval_c_string(...) is reporting "syntax error"
+## TODO: ### s7_eval_c_string(...) is reporting "syntax-error"
 ## here after the last expression successfully executes ?!?
