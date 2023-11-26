@@ -430,8 +430,7 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
   if (!code.source.IsEmpty()) {
     auto results = runSchemeUeCode(mutant, code);
     UE_LOG(LogAlkScheme, Log, TEXT("Scheme session booted: %s"),
-      "TODO: ### dump results as a string"
-      //*stringFromSchemeUeDataDict(results, "result")
+      *stringFromSchemeUeDataDict(results, "result")
     );
   }
   return mutant;
@@ -487,18 +486,23 @@ auto runSchemeUeCode(
   }
   auto s7obj = s7_eval_c_string(
     mutant.s7session, TCHAR_TO_ANSI(*code.source));
-  // ### TODO: CONVERT FAILURE RESULT
   if (willCall) {
     mutCallExpr += ')';
-    s7obj = s7_eval_c_string(mutant.s7session, mutCallExpr.c_str());
-    // ### TODO: CONVERT FAILURE RESULT
+    s7obj = s7_eval_c_string(
+      mutant.s7session, mutCallExpr.c_str());
   }
   auto result = makeSchemeUeDataDict({
     { "result",
       std::any(
+        FString(ANSI_TO_TCHAR(
           //s7_is_string(s7obj) ?
-            FString(ANSI_TO_TCHAR(s7_object_to_c_string(mutant.s7session, s7obj)))
-        //: s7_is_vector(s7obj) ?
+            s7_object_to_c_string(mutant.s7session, s7obj)
+          //s7_is_symbol(s7obj) ?
+          //  s7_object_to_c_string(mutant.s7session, s7obj)
+          //: s7_is_vector(s7obj) ?
+          //  "### TODO s7 result is a vector that we need to convert"
+          //: "### TODO s7 result is a type that we need to convert"
+        ))
       ),
       AlkSchemeUeDataType::String }});
   while (!mutProtectStack.empty()) {
