@@ -94648,8 +94648,8 @@ then returns each var to its original value."
   sc->do_symbol =                binder_syntax(sc, "do",               OP_DO,                int_two,  max_arity,  H_do); /* 2 because body can be null */
   sc->lambda_func_symbol =       binder_syntax(sc, "^",                OP_LAMBDA,            int_two,  max_arity,  H_lambda);             // [c4augustus]
   sc->lambda_func_star_symbol =  binder_syntax(sc, "^*",               OP_LAMBDA_STAR,       int_two,  max_arity,  H_lambda_star);        // [c4augustus]
-  sc->lambda_proc_symbol =       binder_syntax(sc, "&",                OP_LAMBDA,            int_two,  max_arity,  H_lambda);             // [c4augustus]
-  sc->lambda_proc_star_symbol =  binder_syntax(sc, "&*",               OP_LAMBDA_STAR,       int_two,  max_arity,  H_lambda_star);        // [c4augustus]
+  sc->lambda_proc_symbol =       binder_syntax(sc, "<__",              OP_LAMBDA,            int_two,  max_arity,  H_lambda);             // [c4augustus]
+  sc->lambda_proc_star_symbol =  binder_syntax(sc, "<*__",             OP_LAMBDA_STAR,       int_two,  max_arity,  H_lambda_star);        // [c4augustus]
   sc->macro_symbol =             binder_syntax(sc, "macro",            OP_MACRO,             int_two,  max_arity,  H_macro);
   sc->macro_star_symbol =        binder_syntax(sc, "macro*",           OP_MACRO_STAR,        int_two,  max_arity,  H_macro_star);
   sc->bacro_symbol =             binder_syntax(sc, "bacro",            OP_BACRO,             int_two,  max_arity,  H_bacro);

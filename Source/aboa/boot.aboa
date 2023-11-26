@@ -24,22 +24,22 @@
   (< (trace-event event finger location)
     (trace (format $f "^S finger ^S at ^S" event finger location)))
   (ue-bind-input-touch world 'pressed
-    (& (finger location) (trace-event "pressed" finger location)))
+    (<__ (finger location) (trace-event "pressed" finger location)))
   (ue-bind-input-touch world 'released
-    (& (finger location) (trace-event "released" finger location)))
+    (<__ (finger location) (trace-event "released" finger location)))
   (ue-bind-input-touch world 'repeated
-    (& (finger location) (trace-event "repeated" finger location))))
+    (<__ (finger location) (trace-event "repeated" finger location))))
 
 (< (open-scheme-editor screen-pos)
   ## TODO: ### IMPLEMENT
   (trace (format $f "(open-scheme-editor ^S)" screen-pos)))
 
 (ue-hook-on-world-begin-play
-  (& (world)
+  (<__ (world)
     (trace "lambda from (ue-hook-on-world-initialized-actors)")
     (ue-print-string world "Alkaline Scheme is alive")
     (hook-player-input world 'pointing 'press '(200 0 200 0)
-      (& (screen-pos) (open-scheme-editor screen-pos)))))
+      (<__ (screen-pos) (open-scheme-editor screen-pos)))))
 
 (trace "..END booting AlkalineSchemeUE")
 )
