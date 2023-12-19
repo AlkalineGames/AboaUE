@@ -6,42 +6,41 @@
 
 # AlkalineScemeUE boot program
 
-( ## TODO: @@@ NEEDS TO BE A LIST OF EXPRESSIONS FOR NOW
-(~ tracing-to-log $t)
-(~ tracing-to-print $f)
+(begin
+  (~ tracing-to-log $f)
+  (~ tracing-to-print $f)
 
-(< (trace val)
-  (? (or tracing-to-log tracing-to-print)
-    (apply (? tracing-to-print
-             ue-print-string-primary
-             ue-log)
-      (list (format $f "## boot.aboa: ~A" val)))))
+  (< (trace val)
+    (? (or tracing-to-log tracing-to-print)
+      (apply (? tracing-to-print
+               ue-print-string-primary
+               ue-log)
+        (list (format $f "## boot.aboa: ~A" val)))))
 
-(trace "BEGIN booting AlkalineSchemeUE..")
+  (trace "BEGIN booting AlkalineSchemeUE..")
 
-(< (hook-player-input world device action durations func)
-  ## TODO: @@@ ASSUMING 'pointing DEVICE
-  (< (trace-event event finger location)
+  (< (hook-player-input world device action durations func)
+    ## TODO: @@@ ASSUMING 'pointing DEVICE
+    (< (trace-event event finger location)
     (trace (format $f "^S finger ^S at ^S" event finger location)))
-  (ue-bind-input-touch world 'pressed
-    (<__ (finger location) (trace-event "pressed" finger location)))
-  (ue-bind-input-touch world 'released
-    (<__ (finger location) (trace-event "released" finger location)))
-  (ue-bind-input-touch world 'repeated
-    (<__ (finger location) (trace-event "repeated" finger location))))
+    (ue-bind-input-touch world 'pressed
+      (<__ (finger location) (trace-event "pressed" finger location)))
+    (ue-bind-input-touch world 'released
+      (<__ (finger location) (trace-event "released" finger location)))
+    (ue-bind-input-touch world 'repeated
+      (<__ (finger location) (trace-event "repeated" finger location))))
 
-(< (open-scheme-editor screen-pos)
-  ## TODO: ### IMPLEMENT
-  (trace (format $f "(open-scheme-editor ^S)" screen-pos)))
+  (< (open-scheme-editor screen-pos)
+    ## TODO: ### IMPLEMENT
+    (trace (format $f "(open-scheme-editor ^S)" screen-pos)))
 
-(ue-hook-on-world-begin-play
-  (<__ (world)
-    (trace "lambda from (ue-hook-on-world-initialized-actors)")
-    (ue-print-string world "Alkaline Scheme is alive")
-    (hook-player-input world 'pointing 'press '(200 0 200 0)
-      (<__ (screen-pos) (open-scheme-editor screen-pos)))))
+  (ue-hook-on-world-begin-play
+    (<__ (world)
+      (trace "lambda from (ue-hook-on-world-initialized-actors)")
+      (ue-print-string world "Alkaline Scheme is alive")
+      (hook-player-input world 'pointing 'press '(200 0 200 0)
+        (<__ (screen-pos) (open-scheme-editor screen-pos)))))
 
-(trace "..END booting AlkalineSchemeUE")
+  (trace "..END booting AlkalineSchemeUE")
+  'OK
 )
-## TODO: ### s7_eval_c_string(...) is reporting "syntax-error"
-## here after the last expression successfully executes ?!?
