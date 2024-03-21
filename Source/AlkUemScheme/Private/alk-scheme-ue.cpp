@@ -162,6 +162,26 @@ scheme_ue_vector_array(
 }
 
 static auto
+ue_vector_from_s7(
+  s7_pointer const s7pfvec
+) -> FVector {
+  auto fve = s7_float_vector_elements(s7pfvec);
+  return FVector(fve[0], fve[1], fve[2]);
+}
+
+static auto
+ue_vector_array_from_s7(
+  s7_scheme * const s7,
+  s7_pointer  const s7pvec
+) -> TArray<FVector> {
+  auto arr = TArray<FVector>();
+  auto len = s7_vector_length(s7pvec);
+  for (int i = 0; i < len; i++)
+    arr.Emplace(ue_vector_from_s7(s7_vector_ref(s7, s7pvec, i)));
+  return arr;
+}
+
+static auto
 call_lambda_with_s7_string(
   s7_scheme *  const s7,
   s7_pointer   const args,
@@ -491,20 +511,23 @@ auto runSchemeUeCode(
     s7obj = s7_eval_c_string(
       mutant.s7session, mutCallExpr.c_str());
   }
+  AlkSchemeUeDataRef dataref =
+      s7_is_vector(s7obj)
+      ? (((s7_vector_length(s7obj) > 0) &&
+           s7_is_float_vector(s7_vector_elements(s7obj)[0]))
+         ? AlkSchemeUeDataRef
+           { std::any(ue_vector_array_from_s7(mutant.s7session, s7obj)),
+             AlkSchemeUeDataType::VectorArray }
+         : AlkSchemeUeDataRef
+           { std::any(ue_vector_from_s7(s7obj)),
+             AlkSchemeUeDataType::Vector })
+      // ### TODO HANDLE OTHER TYPES
+      :    AlkSchemeUeDataRef
+           { std::any(FString(ANSI_TO_TCHAR(
+                s7_object_to_c_string(mutant.s7session, s7obj)))),
+             AlkSchemeUeDataType::String };
   auto result = makeSchemeUeDataDict({
-    { "result",
-      std::any(
-        FString(ANSI_TO_TCHAR(
-          //s7_is_string(s7obj) ?
-            s7_object_to_c_string(mutant.s7session, s7obj)
-          //s7_is_symbol(s7obj) ?
-          //  s7_object_to_c_string(mutant.s7session, s7obj)
-          //: s7_is_vector(s7obj) ?
-          //  "### TODO s7 result is a vector that we need to convert"
-          //: "### TODO s7 result is a type that we need to convert"
-        ))
-      ),
-      AlkSchemeUeDataType::String }});
+    { "result", dataref.any, dataref.type }});
   while (!mutProtectStack.empty()) {
     s7_gc_unprotect_at(mutant.s7session, mutProtectStack.top());
     mutProtectStack.pop();
