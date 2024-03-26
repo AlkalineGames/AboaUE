@@ -512,20 +512,21 @@ auto runSchemeUeCode(
       mutant.s7session, mutCallExpr.c_str());
   }
   AlkSchemeUeDataRef dataref =
-      s7_is_vector(s7obj)
-      ? (((s7_vector_length(s7obj) > 0) &&
-           s7_is_float_vector(s7_vector_elements(s7obj)[0]))
-         ? AlkSchemeUeDataRef
-           { std::any(ue_vector_array_from_s7(mutant.s7session, s7obj)),
-             AlkSchemeUeDataType::VectorArray }
-         : AlkSchemeUeDataRef
-           { std::any(ue_vector_from_s7(s7obj)),
-             AlkSchemeUeDataType::Vector })
-      // ### TODO HANDLE OTHER TYPES
-      :    AlkSchemeUeDataRef
-           { std::any(FString(ANSI_TO_TCHAR(
-                s7_object_to_c_string(mutant.s7session, s7obj)))),
-             AlkSchemeUeDataType::String };
+      s7_is_float_vector(s7obj)
+      ? AlkSchemeUeDataRef
+        { std::any(ue_vector_from_s7(s7obj)),
+          AlkSchemeUeDataType::Vector }
+      : (s7_is_vector(s7obj)
+         && (s7_vector_length(s7obj) > 0)
+         && s7_is_float_vector(s7_vector_elements(s7obj)[0]))
+        ? AlkSchemeUeDataRef
+          { std::any(ue_vector_array_from_s7(mutant.s7session, s7obj)),
+            AlkSchemeUeDataType::VectorArray }
+        // ### TODO HANDLE OTHER TYPES
+        : AlkSchemeUeDataRef
+          { std::any(FString(ANSI_TO_TCHAR(
+              s7_object_to_c_string(mutant.s7session, s7obj)))),
+            AlkSchemeUeDataType::String };
   auto result = makeSchemeUeDataDict({
     { "result", dataref.any, dataref.type }});
   while (!mutProtectStack.empty()) {
