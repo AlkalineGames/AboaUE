@@ -1,4 +1,4 @@
-# Copyright 2023 Alkaline Games, LLC.
+# Copyright 2023 - 2024 Alkaline Games, LLC.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -9,20 +9,20 @@
 (begin
   (~ tracing-to-log $f)
   (~ tracing-to-print $f)
+  (~ tracing (or tracing-to-log tracing-to-print))
 
-  (< (trace val)
-    (? (or tracing-to-log tracing-to-print)
-      (apply (? tracing-to-print
-               ue-print-string-primary
-               ue-log)
-        (list (format $f "## boot.aboa: ~A" val)))))
+  (< (trace val) (? tracing
+    (apply (? tracing-to-print
+             ue-print-string-primary
+             ue-log)
+      (list (format $f "## boot.aboa: ~A" val)))))
 
-  (trace "BEGIN booting AlkalineSchemeUE..")
+  (? tracing (trace "BEGIN booting AlkalineSchemeUE.."))
 
   (< (hook-player-input world device action durations func)
     ## TODO: @@@ ASSUMING 'pointing DEVICE
     (< (trace-event event finger location)
-    (trace (format $f "^S finger ^S at ^S" event finger location)))
+      (? tracing (trace (format $f "~S finger ~S at ~S" event finger location))))
     (ue-bind-input-touch world 'pressed
       (<__ (finger location) (trace-event "pressed" finger location)))
     (ue-bind-input-touch world 'released
@@ -32,15 +32,15 @@
 
   (< (open-scheme-editor screen-pos)
     ## TODO: ### IMPLEMENT
-    (trace (format $f "(open-scheme-editor ^S)" screen-pos)))
+    (? tracing (trace (format $f "(open-scheme-editor ~S)" screen-pos))))
 
   (ue-hook-on-world-begin-play
     (<__ (world)
-      (trace "lambda from (ue-hook-on-world-initialized-actors)")
+      (? tracing (trace "lambda from (ue-hook-on-world-initialized-actors)"))
       (ue-print-string world "Alkaline Scheme is alive")
       (hook-player-input world 'pointing 'press '(200 0 200 0)
         (<__ (screen-pos) (open-scheme-editor screen-pos)))))
 
-  (trace "..END booting AlkalineSchemeUE")
+  (? tracing (trace "..END booting AlkalineSchemeUE"))
   'OK
 )
