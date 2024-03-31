@@ -433,7 +433,7 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
 #if ALK_TRACING
   UE_LOG(LogAlkScheme, Display,
     TEXT("BEGIN listing scm path %s"), *scmPath);
-  UE_LOG(LogAlkScheme, Display, TEXT("%s"), *(FString(
+  const FString result =
     FPlatformFileManager::Get().GetPlatformFile().IterateDirectory(
       *scmPath,
       [] (TCHAR const *const name, bool isDir) {
@@ -442,7 +442,8 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
             FPaths::GetCleanFilename(name)));
         return true;
       })
-    ? "..END" : "FAILED")));
+    ? "..END" : "FAILED";
+  UE_LOG(LogAlkScheme, Display, TEXT("%s"), *result);
 #endif
   AlkSchemeUeMutant const mutant = {{scmPath}, s7session};
   auto const code = loadSchemeUeCode(
