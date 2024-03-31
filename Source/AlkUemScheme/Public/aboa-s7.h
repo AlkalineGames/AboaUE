@@ -2,6 +2,7 @@
   [Linguagem de programação Aboa por modificação da implementação do s7]
   [c4augustus]
 */
+#pragma once
 #ifndef S7_H
 #define S7_H
 
