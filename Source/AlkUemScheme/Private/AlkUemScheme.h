@@ -8,10 +8,9 @@
 
 #include "alk-scheme-ue.h"
 
-#include <Modules/ModuleInterface.h>
-
-#include <map>
 #include <memory>
+
+#include <Modules/ModuleInterface.h>
 
 class FAlkUemScheme : public IModuleInterface {
 public:
