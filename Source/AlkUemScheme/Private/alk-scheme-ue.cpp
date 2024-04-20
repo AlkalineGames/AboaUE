@@ -7,6 +7,7 @@
 #include "alk-scheme-ue.h"
 
 #include "alk-ue-helper.h"
+#include "any-cast-ue.h"
 
 #include "aboa-s7.h"
 
@@ -487,11 +488,11 @@ auto runSchemeUeCode(
         break;
       case AlkSchemeUeDataType::Vector :
         s7value = scheme_ue_vector(
-          mutant.s7session, std::any_cast<FVector>(ref.any));
+          mutant.s7session, ueVectorFromAny(ref.any));
         break;
       case AlkSchemeUeDataType::VectorArray :
         s7value = scheme_ue_vector_array(
-          mutant.s7session, std::any_cast<TArray<FVector> >(ref.any));
+          mutant.s7session, ueVectorArrayFromAny(ref.any));
         break;
     }
     //UE_LOG(LogAlkScheme, Error, TEXT("s7_define_variable %s %d"), *arg.first, &ref.any)
@@ -587,7 +588,7 @@ auto stringFromSchemeUeDataDict(
     //  TEXT("stringFromSchemeUeDataDict ref->any has_value=%s, type=%s"),
     //  ANSI_TO_TCHAR(refOrNull->any.has_value() ? "true " : "false"),
     //  ANSI_TO_TCHAR(refOrNull->any.type().name()));
-    return std::any_cast<FString>(refOrNull->any);
+    return ueStringFromAny(refOrNull->any);
   }
   return FString();
 }
@@ -600,6 +601,6 @@ auto vectorArrayFromSchemeUeDataDict(
     "vectorArrayFromSchemeUeDataDict", dict, key,
     AlkSchemeUeDataType::VectorArray);
   if (refOrNull)
-    return std::any_cast<TArray<FVector> >(refOrNull->any);
+    return ueVectorArrayFromAny(refOrNull->any);
   return TArray<FVector>();
 }
