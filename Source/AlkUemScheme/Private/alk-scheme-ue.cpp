@@ -567,6 +567,20 @@ auto makeSchemeUeDataDict(
   return dict;
 }
 
+auto makeSchemeUeDataVector(
+  FString const & name,
+  FVector const & data
+) -> AlkSchemeUeDataArg {
+  return {name, &data, AlkSchemeUeDataType::Vector};
+}
+
+auto makeSchemeUeDataVectorArray(
+  FString         const & name,
+  TArray<FVector> const & data
+) -> AlkSchemeUeDataArg {
+  return {name, &data, AlkSchemeUeDataType::VectorArray};
+}
+
 static void logErrorMap(
   char const * const   errorText,
   char const * const   callerName,

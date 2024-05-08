@@ -73,6 +73,18 @@ makeSchemeUeDataDict(
 ) -> AlkSchemeUeDataDict;
 
 auto ALKUEMSCHEME_API
+makeSchemeUeDataVector(
+  FString             const & name,
+  FVector             const & data
+) -> AlkSchemeUeDataArg;
+
+auto ALKUEMSCHEME_API
+makeSchemeUeDataVectorArray(
+  FString             const & name,
+  TArray<FVector>     const & data
+) -> AlkSchemeUeDataArg;
+
+auto ALKUEMSCHEME_API
 stringFromSchemeUeDataDict(
   AlkSchemeUeDataDict const & dict,
   FString             const & key
