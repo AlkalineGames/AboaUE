@@ -8,6 +8,6 @@
 
 #include <any>
 
-auto ueStringFromAny(       std::any) -> FString;
-auto ueVectorFromAny(       std::any) -> FVector;
-auto ueVectorArrayFromAny(  std::any) -> TArray<FVector>;
+auto ueStringPtrFromAny(       std::any const &) -> FString         const *;
+auto ueVectorPtrFromAny(       std::any const &) -> FVector         const *;
+auto ueVectorArrayPtrFromAny(  std::any const &) -> TArray<FVector> const *;

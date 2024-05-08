@@ -1,4 +1,4 @@
-// Copyright 2023 Alkaline Games, LLC.
+// Copyright 2023 - 2024 Alkaline Games, LLC.
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -6,7 +6,16 @@
 
 #pragma once
 
+// NOTE: !!! std::any fails to cast across shared libraries on macOS
+#define ALK_SCHEME_UE_STD_ANY 1
+#if ALK_SCHEME_UE_STD_ANY
 #include <any>
+typedef std::any AlkSchemeUeDataAny;
+#else
+typedef void * AlkSchemeUeDataAny;
+  // ^ TODO: @@@ placeholder for possible rewrite
+#endif
+
 #include <map>
 
 struct s7_scheme;
@@ -21,14 +30,14 @@ enum struct AlkSchemeUeDataType {
 };
 
 struct AlkSchemeUeDataRef {
-  std::any const      any;
-  AlkSchemeUeDataType type;
+  AlkSchemeUeDataAny  const any;
+  AlkSchemeUeDataType const type;
 };
 
 struct AlkSchemeUeDataArg {
-  FString  const      name;
-  std::any const      any;
-  AlkSchemeUeDataType type;
+  FString             const name;
+  AlkSchemeUeDataAny  const any;
+  AlkSchemeUeDataType const type;
 };
 
 typedef std::map<FString, AlkSchemeUeDataRef>

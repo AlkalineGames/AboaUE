@@ -172,15 +172,23 @@ ue_vector_from_s7(
 }
 
 static auto
-ue_vector_array_from_s7(
+alloc_ue_vector_from_s7(
+  s7_pointer const s7pfvec
+) -> FVector const & {
+  auto fve = s7_float_vector_elements(s7pfvec);
+  return *new FVector(fve[0], fve[1], fve[2]);
+}
+
+static auto
+alloc_ue_vector_array_from_s7(
   s7_scheme * const s7,
   s7_pointer  const s7pvec
-) -> TArray<FVector> {
-  auto arr = TArray<FVector>();
+) -> TArray<FVector> const & {
+  auto arr = new TArray<FVector>(); // TODO: @@@ PRE-ALLOCATE LENGTH
   auto len = s7_vector_length(s7pvec);
   for (int i = 0; i < len; i++)
-    arr.Emplace(ue_vector_from_s7(s7_vector_ref(s7, s7pvec, i)));
-  return arr;
+    arr->Emplace(ue_vector_from_s7(s7_vector_ref(s7, s7pvec, i)));
+  return *arr;
 }
 
 static auto
@@ -481,20 +489,30 @@ auto runSchemeUeCode(
     auto & ref = arg.second;
     s7_pointer s7value = s7_nil(mutant.s7session);
     switch (ref.type) {
-      case AlkSchemeUeDataType::Bool :
+      case AlkSchemeUeDataType::Bool : {
         // TODO: ### IMPLEMENT TYPE
         break;
-      case AlkSchemeUeDataType::String :
+      }
+      case AlkSchemeUeDataType::String : {
         // TODO: ### IMPLEMENT TYPE
         break;
-      case AlkSchemeUeDataType::Vector :
+      }
+      case AlkSchemeUeDataType::Vector : {
+        auto vp = ueVectorPtrFromAny(ref.any);
+        if (!vp) UE_LOG(LogAlkScheme, Error,
+          TEXT("runSchemeUeCode(...) arg type is not Vector"));
         s7value = scheme_ue_vector(
-          mutant.s7session, ueVectorFromAny(ref.any));
+          mutant.s7session, vp ? *vp : FVector());
         break;
-      case AlkSchemeUeDataType::VectorArray :
+      }
+      case AlkSchemeUeDataType::VectorArray : {
+        auto vap = ueVectorArrayPtrFromAny(ref.any);
+        if (!vap) UE_LOG(LogAlkScheme, Error,
+          TEXT("runSchemeUeCode(...) arg type is not VectorArray"));
         s7value = scheme_ue_vector_array(
-          mutant.s7session, ueVectorArrayFromAny(ref.any));
+          mutant.s7session, vap ? *vap : TArray<FVector>());
         break;
+      }
     }
     //UE_LOG(LogAlkScheme, Error, TEXT("s7_define_variable %s %d"), *arg.first, &ref.any)
     auto argName = std::string(willCall ? "arg--" : "")
@@ -517,18 +535,18 @@ auto runSchemeUeCode(
   AlkSchemeUeDataRef dataref =
       s7_is_float_vector(s7obj)
       ? AlkSchemeUeDataRef
-        { std::any(ue_vector_from_s7(s7obj)),
+        { &alloc_ue_vector_from_s7(s7obj), // TODO: ### ALLOCATED
           AlkSchemeUeDataType::Vector }
       : (s7_is_vector(s7obj)
          && (s7_vector_length(s7obj) > 0)
          && s7_is_float_vector(s7_vector_elements(s7obj)[0]))
         ? AlkSchemeUeDataRef
-          { std::any(ue_vector_array_from_s7(mutant.s7session, s7obj)),
+          { &alloc_ue_vector_array_from_s7(mutant.s7session, s7obj), // TODO: ### ALLOCATED
             AlkSchemeUeDataType::VectorArray }
         // ### TODO HANDLE OTHER TYPES
         : AlkSchemeUeDataRef
-          { std::any(FString(ANSI_TO_TCHAR(
-              s7_object_to_c_string(mutant.s7session, s7obj)))),
+          { new FString(ANSI_TO_TCHAR(
+              s7_object_to_c_string(mutant.s7session, s7obj))),
             AlkSchemeUeDataType::String };
   auto result = makeSchemeUeDataDict({
     { "result", dataref.any, dataref.type }});
@@ -589,7 +607,12 @@ auto stringFromSchemeUeDataDict(
     //  TEXT("stringFromSchemeUeDataDict ref->any has_value=%s, type=%s"),
     //  ANSI_TO_TCHAR(refOrNull->any.has_value() ? "true " : "false"),
     //  ANSI_TO_TCHAR(refOrNull->any.type().name()));
-    return ueStringFromAny(refOrNull->any);
+    auto sp = ueStringPtrFromAny(refOrNull->any);
+    if (sp)
+      return *sp;
+    else
+      UE_LOG(LogAlkScheme, Error,
+        TEXT("stringFromSchemeUeDataDict(...) arg type is not String"));
   }
   return FString();
 }
@@ -601,7 +624,13 @@ auto vectorArrayFromSchemeUeDataDict(
   auto refOrNull = schemeUeDataRefInDict(
     "vectorArrayFromSchemeUeDataDict", dict, key,
     AlkSchemeUeDataType::VectorArray);
-  if (refOrNull)
-    return ueVectorArrayFromAny(refOrNull->any);
+  if (refOrNull) {
+    auto vap = ueVectorArrayPtrFromAny(refOrNull->any);
+    if (vap)
+      return *vap;
+    else
+      UE_LOG(LogAlkScheme, Error,
+        TEXT("vectorArrayFromSchemeUeDataDict(...) arg type is not VectorArray"));
+  }
   return TArray<FVector>();
 }

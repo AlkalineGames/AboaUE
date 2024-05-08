@@ -17,20 +17,23 @@
 // Module.AlkUemScheme.cpp.obj : error LNK2019: unresolved external symbol "__declspec(dllimport) public: __cdecl std::bad_cast::bad_cast(char const *)" (__imp_??0bad_cast@std@@QEAA@PEBD@Z) referenced in function "public: __cdecl std::bad_any_cast::bad_any_cast(void)" (??0bad_any_cast@std@@QEAA@XZ)
 // Module.AlkUemScheme.cpp.obj : error LNK2001: unresolved external symbol "protected: virtual void __cdecl std::bad_cast::_Doraise(void)const " (?_Doraise@bad_cast@std@@MEBAXXZ)
 
-template <class T> auto fromAny(std::any a) -> T {
-  //return std::any_cast<T>(any);
-  auto z = reinterpret_cast<const T*>(std::any_cast<T>(&a));
-  return z ? T(*z) : T();
+template <class T> auto ptrFromAny(
+    std::any const & a) -> T const * {
+  T const * const * pp = std::any_cast<T const *>(&a);
+  return pp ? *pp : nullptr;
 }
 
-auto ueStringFromAny(std::any a) -> FString {
-  return fromAny<FString>(a);
+auto ueStringPtrFromAny(
+    std::any const & a) -> FString const * {
+  return ptrFromAny<FString>(a);
 }
 
-auto ueVectorFromAny(std::any a) -> FVector {
-  return fromAny<FVector>(a);
+auto ueVectorPtrFromAny(
+    std::any const & a) -> FVector const * {
+  return ptrFromAny<FVector>(a);
 }
 
-auto ueVectorArrayFromAny(std::any a) -> TArray<FVector> {
-  return fromAny<TArray<FVector> >(a);
+auto ueVectorArrayPtrFromAny(
+    std::any const & a) -> TArray<FVector> const * {
+  return ptrFromAny<TArray<FVector> >(a);
 }
