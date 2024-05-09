@@ -15,5 +15,7 @@ public class AlkUemScheme : ModuleRules {
       "CoreUObject",
       "Engine"
     });
+    RuntimeDependencies.Add(
+      PluginDirectory + "/Source/aboa/boot.aboa");
   }
 }
