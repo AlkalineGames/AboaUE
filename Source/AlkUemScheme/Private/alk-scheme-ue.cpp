@@ -459,9 +459,9 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
   auto const code = loadSchemeUeCode(
     FPaths::Combine(scmPath, TEXT("boot.aboa")));
   if (!code.source.IsEmpty()) {
-    auto results = runSchemeUeCode(mutant, code);
+    auto result = runSchemeUeCode(mutant, code);
     UE_LOG(LogAlkScheme, Log, TEXT("Scheme session booted: %s"),
-      *stringFromSchemeUeDataDict(results, "result")
+      *stringFromSchemeUeDataDict(result, "result")
     );
   }
   return mutant;
@@ -532,24 +532,20 @@ auto runSchemeUeCode(
     s7obj = s7_eval_c_string(
       mutant.s7session, mutCallExpr.c_str());
   }
-  AlkSchemeUeDataRef dataref =
-      s7_is_float_vector(s7obj)
-      ? AlkSchemeUeDataRef
-        { &alloc_ue_vector_from_s7(s7obj), // TODO: ### ALLOCATED
-          AlkSchemeUeDataType::Vector }
-      : (s7_is_vector(s7obj)
-         && (s7_vector_length(s7obj) > 0)
-         && s7_is_float_vector(s7_vector_elements(s7obj)[0]))
-        ? AlkSchemeUeDataRef
-          { &alloc_ue_vector_array_from_s7(mutant.s7session, s7obj), // TODO: ### ALLOCATED
-            AlkSchemeUeDataType::VectorArray }
-        // ### TODO HANDLE OTHER TYPES
-        : AlkSchemeUeDataRef
-          { new FString(ANSI_TO_TCHAR(
-              s7_object_to_c_string(mutant.s7session, s7obj))),
-            AlkSchemeUeDataType::String };
-  auto result = makeSchemeUeDataDict({
-    { "result", dataref.any, dataref.type }});
+  auto ref =
+    s7_is_float_vector(s7obj)
+    ? makeSchemeUeDataVector( // TODO: ### ALLOCATED
+        alloc_ue_vector_from_s7(s7obj))
+    : (s7_is_vector(s7obj)
+       && (s7_vector_length(s7obj) > 0)
+       && s7_is_float_vector(s7_vector_elements(s7obj)[0]))
+      ? makeSchemeUeDataVectorArray( // TODO: ### ALLOCATED
+          alloc_ue_vector_array_from_s7(mutant.s7session, s7obj))
+      // ### TODO HANDLE OTHER TYPES
+      : makeSchemeUeDataString(
+          *new FString(ANSI_TO_TCHAR(
+            s7_object_to_c_string(mutant.s7session, s7obj))));
+  auto result = makeSchemeUeDataDict({{"result", ref}});
   while (!mutProtectStack.empty()) {
     s7_gc_unprotect_at(mutant.s7session, mutProtectStack.top());
     mutProtectStack.pop();
@@ -562,23 +558,20 @@ auto makeSchemeUeDataDict(
 ) -> AlkSchemeUeDataDict {
   auto dict = AlkSchemeUeDataDict();
   for (auto & arg : args)
-    dict.emplace(std::make_pair(
-      arg.name, AlkSchemeUeDataRef {arg.any, arg.type}));
+    dict.emplace(std::make_pair(arg.name, arg.ref));
   return dict;
 }
 
-auto makeSchemeUeDataVector(
-  FString const & name,
-  FVector const & data
-) -> AlkSchemeUeDataArg {
-  return {name, &data, AlkSchemeUeDataType::Vector};
+auto makeSchemeUeDataString(FString const & data) -> AlkSchemeUeDataRef {
+  return {&data, AlkSchemeUeDataType::String};
 }
 
-auto makeSchemeUeDataVectorArray(
-  FString         const & name,
-  TArray<FVector> const & data
-) -> AlkSchemeUeDataArg {
-  return {name, &data, AlkSchemeUeDataType::VectorArray};
+auto makeSchemeUeDataVector(FVector const & data) -> AlkSchemeUeDataRef {
+  return {&data, AlkSchemeUeDataType::Vector};
+}
+
+auto makeSchemeUeDataVectorArray(TArray<FVector> const & data) -> AlkSchemeUeDataRef {
+  return {&data, AlkSchemeUeDataType::VectorArray};
 }
 
 static void logErrorMap(

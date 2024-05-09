@@ -36,8 +36,7 @@ struct AlkSchemeUeDataRef {
 
 struct AlkSchemeUeDataArg {
   FString             const name;
-  AlkSchemeUeDataAny  const any;
-  AlkSchemeUeDataType const type;
+  AlkSchemeUeDataRef  const ref;
 };
 
 typedef std::map<FString, AlkSchemeUeDataRef>
@@ -73,16 +72,13 @@ makeSchemeUeDataDict(
 ) -> AlkSchemeUeDataDict;
 
 auto ALKUEMSCHEME_API
-makeSchemeUeDataVector(
-  FString             const & name,
-  FVector             const & data
-) -> AlkSchemeUeDataArg;
+makeSchemeUeDataString(FString const &) -> AlkSchemeUeDataRef;
 
 auto ALKUEMSCHEME_API
-makeSchemeUeDataVectorArray(
-  FString             const & name,
-  TArray<FVector>     const & data
-) -> AlkSchemeUeDataArg;
+makeSchemeUeDataVector(FVector const &) -> AlkSchemeUeDataRef;
+
+auto ALKUEMSCHEME_API
+makeSchemeUeDataVectorArray(TArray<FVector> const &) -> AlkSchemeUeDataRef;
 
 auto ALKUEMSCHEME_API
 stringFromSchemeUeDataDict(
