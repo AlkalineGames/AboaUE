@@ -1,4 +1,4 @@
-// Copyright 2023 Alkaline Games, LLC.
+// Copyright 2023 - 2024 Alkaline Games, LLC.
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -26,8 +26,8 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogAlkScheme, Log, All);
 DEFINE_LOG_CATEGORY(LogAlkScheme);
 
-struct ErrorPointer     { s7_pointer const pointer; };
-struct ProcedurePointer { s7_pointer const pointer; };
+struct s7pointerError { s7_pointer const pointer; };
+struct s7pointerValid { s7_pointer const pointer; };
 
 static auto
 scheme_arg_c_pointer_or_error(
@@ -35,11 +35,11 @@ scheme_arg_c_pointer_or_error(
   s7_pointer   const arg,
   int          const index,
   char const * const name
-) -> std::variant<ProcedurePointer,ErrorPointer> {
+) -> std::variant<s7pointerValid,s7pointerError> {
   if (s7_is_c_pointer(arg))
-    return ProcedurePointer({arg});
+    return s7pointerValid({arg});
   else
-    return ErrorPointer({s7_wrong_type_arg_error(
+    return s7pointerError({s7_wrong_type_arg_error(
       s7, name, index, arg, "a C pointer")});
 }
 
@@ -49,11 +49,11 @@ scheme_arg_procedure_or_error(
   s7_pointer   const arg,
   int          const index,
   char const * const name
-) -> std::variant<ProcedurePointer,ErrorPointer> {
+) -> std::variant<s7pointerValid,s7pointerError> {
   if (s7_is_procedure(arg))
-    return ProcedurePointer({arg});
+    return s7pointerValid({arg});
   else
-    return ErrorPointer({s7_wrong_type_arg_error(
+    return s7pointerError({s7_wrong_type_arg_error(
       s7, name, index, arg, "a procedure")});
 }
 
@@ -63,11 +63,11 @@ scheme_arg_string_or_error(
   s7_pointer   const arg,
   int          const index,
   char const * const name
-) -> std::variant<char const *,ErrorPointer> {
+) -> std::variant<char const *,s7pointerError> {
   if (s7_is_string(arg))
     return s7_string(arg);
   else
-    return ErrorPointer({s7_wrong_type_arg_error(
+    return s7pointerError({s7_wrong_type_arg_error(
       s7, name, index, arg, "a string")});
 }
 
@@ -77,11 +77,11 @@ scheme_arg_symbol_or_error(
   s7_pointer   const arg,
   int          const index,
   char const * const name
-) -> std::variant<char const *,ErrorPointer> {
+) -> std::variant<char const *,s7pointerError> {
   if (s7_is_symbol(arg))
     return s7_symbol_name(arg);
   else
-    return ErrorPointer({s7_wrong_type_arg_error(
+    return s7pointerError({s7_wrong_type_arg_error(
       s7, name, index, arg, "a symbol")});
 }
 
@@ -93,7 +93,7 @@ scheme_arg_symbol_index_or_error(
   char const *      const name,
   std::string_view  const choices[], // !!! cannot use std::array
   int               const choice_count
-) -> std::variant<int,ErrorPointer> {
+) -> std::variant<int,s7pointerError> {
   auto const symbol = scheme_arg_symbol_or_error(s7, arg, index, name);
   if (symbol.index() == 1)
     return std::get<1>(symbol);
@@ -112,30 +112,30 @@ scheme_arg_symbol_index_or_error(
   auto const result = choices + mutI;
 #endif
   if (result == choices + choice_count)
-    return ErrorPointer({s7_wrong_type_arg_error(
+    return s7pointerError({s7_wrong_type_arg_error(
       s7, name, index, arg, "unmatched symbol")});
   else
     return int(std::distance(choices, result));
 }
 
+template <class T>
 static auto
-scheme_arg_world(
+scheme_arg_typed_or_error(
   s7_scheme *  const s7,
   s7_pointer   const arg,
   int          const index,
   char const * const name
-) -> std::variant<UWorld const *,ErrorPointer> {
-  auto const argworld = scheme_arg_c_pointer_or_error(s7, arg, index, name);
-  if (argworld.index() == 1)
-    return std::get<1>(argworld);
-  auto const worlds7pointer = std::get<0>(argworld).pointer;
-  auto const world = const_cast<UWorld const *>(
-    reinterpret_cast<UWorld*>(s7_c_pointer(worlds7pointer))); // TODO: ### YIKES!
-  if (!world)
-    return ErrorPointer({s7_wrong_type_arg_error(
-      s7, name, index, arg, "no world")});
+) -> std::variant<T const *,s7pointerError> {
+  auto const argcptr = scheme_arg_c_pointer_or_error(s7, arg, index, name);
+  if (argcptr.index() == 1)
+    return std::get<1>(argcptr);
+  auto const typed = const_cast<T const *>(
+    reinterpret_cast<T*>(s7_c_pointer(std::get<0>(argcptr).pointer))); // TODO: ### YIKES!
+  if (!typed)
+    return s7pointerError({s7_wrong_type_arg_error(
+      s7, name, index, arg, "no arg")});
   else
-    return world;
+    return typed;
 }
 
 static auto
@@ -210,6 +210,26 @@ class UInputBinding : public UObject {
   s7_scheme * s7          = nullptr;
   s7_pointer  mutHandler  = nullptr;
 public:
+  void BindAction(
+    UInputComponent & inputcomp,
+    const char *      action,
+    EInputEvent const event,
+    s7_scheme * const ins7,
+    s7_pointer  const proc
+  ) {
+    if (ins7 && proc && s7_is_procedure(proc)) {
+      s7 = ins7;
+      mutHandler = proc;
+      s7_gc_protect(s7, mutHandler); // TODO: @@@ PROTECTED INDEFINITELY
+      inputcomp.BindAction(action, event, this, &UInputBinding::HandleAction);
+#if ALK_TRACING
+      UE_LOG(LogAlkScheme, Display,
+        TEXT("TRACE C++ BindAction %s s7 %d handler %d"),
+        event == EInputEvent::IE_Pressed ? TEXT("Pressed") : TEXT("not Pressed"),
+        s7, mutHandler);
+#endif
+    }
+  }
   void BindEventHandler(
     UInputComponent & inputcomp,
     EInputEvent const event,
@@ -227,6 +247,16 @@ public:
         event == EInputEvent::IE_Pressed ? TEXT("Pressed") : TEXT("not Pressed"),
         s7, mutHandler);
 #endif
+    }
+  }
+  void HandleAction() {
+    if (s7 && mutHandler) {
+#if ALK_TRACING
+    UE_LOG(LogAlkScheme, Display,
+      TEXT("TRACE C++ HandleAction s7 %d handler %d"),
+      s7, mutHandler);
+#endif
+      s7_apply_function(s7, mutHandler, s7_nil(s7));
     }
   }
   void HandleEvent(
@@ -258,16 +288,51 @@ static std::array input_events {
   EInputEvent::IE_Repeat
 };
 
+static auto const name_ue_bind_input_action = "ue-bind-input-action";
+static auto
+ue_bind_input_action(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argpawn = scheme_arg_typed_or_error<APawn>(
+    s7, s7_car(args), 1, "pawn");
+  if (argpawn.index() == 1)
+    return std::get<1>(argpawn).pointer;
+  auto const pawn = std::get<0>(argpawn);
+  if (!pawn)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const argaction = scheme_arg_string_or_error(
+    s7, s7_cadr(args), 2, "action");
+  if (argaction.index() == 1)
+    return std::get<1>(argaction).pointer;
+  auto const argevent = scheme_arg_symbol_index_or_error(
+    s7, s7_caddr(args), 3, "event", input_symbols.data(), input_symbols.size());
+  if (argevent.index() == 1)
+    return std::get<1>(argevent).pointer;
+  auto const inputevent = input_events[std::get<0>(argevent)];
+  auto const arghandler = scheme_arg_procedure_or_error(
+    s7, s7_cadddr(args), 4, "handler");
+  if (arghandler.index() == 1)
+    return std::get<1>(arghandler).pointer;
+  auto const handler = std::get<0>(arghandler).pointer;
+  auto const inputcomp = MutPawnInputComponentOrError(
+    *pawn, 0, name_ue_bind_input_action, "");
+  if (!inputcomp)
+    return s7_f(s7); // TODO: @@@ REPORT ERROR TO SCHEME
+  auto const binding = NewObject<UInputBinding>();
+  binding->BindAction(
+    *inputcomp, std::get<0>(argaction), inputevent, s7, handler);
+  // TODO: ### binding LEAKS FROM HERE
+  return s7_t(s7);
+}
+
 static auto const name_ue_bind_input_touch = "ue-bind-input-touch";
 static auto
 ue_bind_input_touch(s7_scheme * s7, s7_pointer args) -> s7_pointer {
-  auto const argworld = scheme_arg_world(
+  auto const argworld = scheme_arg_typed_or_error<UWorld>(
     s7, s7_car(args), 1, "world");
   if (argworld.index() == 1)
     return std::get<1>(argworld).pointer;
   auto const world = std::get<0>(argworld);
   if (!world)
-    return s7_f(s7); // !!! scheme_arg_world already checks for null
+    return s7_f(s7); // !!! scheme_arg already checks for null
   auto const argevent = scheme_arg_symbol_index_or_error(
     s7, s7_cadr(args), 2, "event", input_symbols.data(), input_symbols.size());
   if (argevent.index() == 1)
@@ -381,7 +446,7 @@ ue_log(s7_scheme * s7, s7_pointer args) -> s7_pointer {
 static auto const name_ue_print_string = "ue-print-string";
 static auto
 ue_print_string(s7_scheme * s7, s7_pointer args) -> s7_pointer {
-  auto const argworld = scheme_arg_world(
+  auto const argworld = scheme_arg_typed_or_error<UWorld>(
     s7, s7_car(args), 1, "world");
   if (argworld.index() == 1)
     return std::get<1>(argworld).pointer;
@@ -422,8 +487,11 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
     return {};
   }
   s7_define_function(s7session,
+    name_ue_bind_input_action, ue_bind_input_action, 4, 0, false,
+    function_help_string(name_ue_bind_input_touch, " input action handler").c_str());
+  s7_define_function(s7session,
     name_ue_bind_input_touch, ue_bind_input_touch, 3, 0, false,
-    function_help_string(name_ue_bind_input_touch, " world event handler").c_str());
+    function_help_string(name_ue_bind_input_touch, " input touch handler").c_str());
   s7_define_function(s7session,
     name_ue_hook_on_world_begin_play, ue_hook_on_world_begin_play, 1, 0, false,
     function_help_string(name_ue_hook_on_world_begin_play, " handler").c_str());
@@ -497,6 +565,15 @@ auto runSchemeUeCode(
         // TODO: ### IMPLEMENT TYPE
         break;
       }
+      case AlkSchemeUeDataType::Uobject : {
+        auto op = ueObjectPtrFromAny(ref.any);
+        if (!op) UE_LOG(LogAlkScheme, Error,
+          TEXT("runSchemeUeCode(...) arg type is not a Uobject"))
+        else
+          s7value = s7_make_c_pointer(
+            mutant.s7session, const_cast<UObject *>(op));
+        break;
+      }
       case AlkSchemeUeDataType::Vector : {
         auto vp = ueVectorPtrFromAny(ref.any);
         if (!vp) UE_LOG(LogAlkScheme, Error,
@@ -568,6 +645,10 @@ auto makeSchemeUeDataString(FString const & data) -> AlkSchemeUeDataRef {
 
 auto makeSchemeUeDataVector(FVector const & data) -> AlkSchemeUeDataRef {
   return {&data, AlkSchemeUeDataType::Vector};
+}
+
+auto makeSchemeUeDataUobject(UObject const & data) -> AlkSchemeUeDataRef {
+  return {&data, AlkSchemeUeDataType::Uobject};
 }
 
 auto makeSchemeUeDataVectorArray(TArray<FVector> const & data) -> AlkSchemeUeDataRef {

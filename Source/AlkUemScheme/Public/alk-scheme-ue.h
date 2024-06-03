@@ -26,7 +26,7 @@ struct AlkSchemeUeCode {
 };
 
 enum struct AlkSchemeUeDataType {
-  Nothing, Bool, String, Vector, VectorArray
+  Nothing, Bool, String, Uobject, Vector, VectorArray
 };
 
 struct AlkSchemeUeDataRef {
@@ -73,6 +73,9 @@ makeSchemeUeDataDict(
 
 auto ALKUEMSCHEME_API
 makeSchemeUeDataString(FString const &) -> AlkSchemeUeDataRef;
+
+auto ALKUEMSCHEME_API
+makeSchemeUeDataUobject(UObject const &) -> AlkSchemeUeDataRef;
 
 auto ALKUEMSCHEME_API
 makeSchemeUeDataVector(FVector const &) -> AlkSchemeUeDataRef;
