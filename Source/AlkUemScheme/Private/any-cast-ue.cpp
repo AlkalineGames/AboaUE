@@ -28,6 +28,11 @@ auto ueStringPtrFromAny(
   return ptrFromAny<FString>(a);
 }
 
+auto ueObjectPtrFromAny(
+    std::any const & a) -> UObject const * {
+  return ptrFromAny<UObject>(a);
+}
+
 auto ueVectorPtrFromAny(
     std::any const & a) -> FVector const * {
   return ptrFromAny<FVector>(a);
