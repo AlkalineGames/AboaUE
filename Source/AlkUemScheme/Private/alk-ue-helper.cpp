@@ -126,6 +126,32 @@ auto PrimaryWorldOrError(
   return mutPrimary;
 }
 
+auto PawnInputComponentOrError(
+  APawn        const & pawn,
+  int          const index,
+  char const * const purpose,
+  char const * const info
+) -> UInputComponent const * {
+  auto const * const input = pawn.InputComponent.Get();
+  if (!input)
+    UE_LOG(LogAlkUeHelper, Error,
+      TEXT("No InputComponent found for %s of %s"),
+      ANSI_TO_TCHAR(purpose),
+      ANSI_TO_TCHAR(info));
+  return input;
+}
+
+auto PlayerInputComponentOrError(
+  UWorld       const & world,
+  int          const index,
+  char const * const purpose,
+  char const * const info
+) -> UInputComponent const * {
+  auto const * const pawn = PlayerPawnOrError(world, index, purpose, info);
+  if (!pawn) { return nullptr; }
+  return PawnInputComponentOrError(*pawn, index, purpose, info);
+}
+
 auto PlayerPawnOrError(
   UWorld       const & world,
   int          const index,
@@ -139,23 +165,6 @@ auto PlayerPawnOrError(
       ANSI_TO_TCHAR(purpose),
       ANSI_TO_TCHAR(info));
   return pawn;
-}
-
-auto PlayerInputComponentOrError(
-  UWorld       const & world,
-  int          const index,
-  char const * const purpose,
-  char const * const info
-) -> UInputComponent const * {
-  auto const * const pawn = PlayerPawnOrError(world, index, purpose, info);
-  if (!pawn) { return nullptr; }
-  auto const * const input = pawn->InputComponent.Get();
-  if (!input)
-    UE_LOG(LogAlkUeHelper, Error,
-      TEXT("No InputComponent found for %s of %s"),
-      ANSI_TO_TCHAR(purpose),
-      ANSI_TO_TCHAR(info));
-  return input;
 }
 
 auto PluginSubpath(

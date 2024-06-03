@@ -60,8 +60,24 @@ static auto MutPlayerPawnOrError(
   return const_cast<APawn*>(PlayerPawnOrError(world, index, purpose, info));
 }
 
+auto PawnInputComponentOrError(
+  APawn        const &,
+  int          const index,
+  char const * const purpose,
+  char const * const info
+) -> UInputComponent const *;
+
+static auto MutPawnInputComponentOrError(
+  APawn        const & pawn,
+  int          const index,
+  char const * const purpose,
+  char const * const info
+) -> UInputComponent * {
+  return const_cast<UInputComponent*>(PawnInputComponentOrError(pawn, index, purpose, info));
+}
+
 auto PlayerInputComponentOrError(
-  UWorld       const & world,
+  UWorld       const &,
   int          const index,
   char const * const purpose,
   char const * const info
