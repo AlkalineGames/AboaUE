@@ -7,22 +7,24 @@
 # AlkalineScemeUE boot program
 
 (begin
-  (~ tracing-to-log $f)
+  (~ tracing-to-log   $f)
   (~ tracing-to-print $f)
   (~ tracing (or tracing-to-log tracing-to-print))
+  (< (trace a)
+        (? tracing (@ ((s (format $f "## boot.aboa: ~A" a)))
+          (? tracing-to-log   (ue-log s))
+          (? tracing-to-print (ue-print-string-primary s)))))
+  (< (trace-format-values form . vals)
+        (? tracing (trace-string (apply format $f form vals))))
 
-  (< (trace val) (? tracing
-    (apply (? tracing-to-print
-             ue-print-string-primary
-             ue-log)
-      (list (format $f "## boot.aboa: ~A" val)))))
-
-  (? tracing (trace "BEGIN booting AlkalineSchemeUE.."))
+  (trace "BEGIN booting AlkalineSchemeUE..")
 
   (< (hook-player-input world device action durations func)
     ## TODO: @@@ ASSUMING 'pointing DEVICE
     (< (trace-event event finger location)
-      (? tracing (trace (format $f "~S finger ~S at ~S" event finger location))))
+      ## TODO: @@@ trace-format-values apply will expand location and choke
+      ##(trace-format-values "~A finger ~A at ~{~A}" event finger location))
+      (? tracing (trace (format $f "~A finger ~A at ~A" event finger location))))
     (ue-bind-input-touch world 'pressed
       (<__ (finger location) (trace-event "pressed" finger location)))
     (ue-bind-input-touch world 'released
@@ -32,15 +34,15 @@
 
   (< (open-scheme-editor screen-pos)
     ## TODO: ### IMPLEMENT
-    (? tracing (trace (format $f "(open-scheme-editor ~S)" screen-pos))))
+    (trace-format-values "(open-scheme-editor ~A)" screen-pos))
 
   (ue-hook-on-world-begin-play
     (<__ (world)
-      (? tracing (trace "lambda from (ue-hook-on-world-initialized-actors)"))
+      (trace "lambda from (ue-hook-on-world-initialized-actors)")
       (ue-print-string world "Alkaline Scheme is alive")
       (hook-player-input world 'pointing 'press '(200 0 200 0)
         (<__ (screen-pos) (open-scheme-editor screen-pos)))))
 
-  (? tracing (trace "..END booting AlkalineSchemeUE"))
+  (trace "..END booting AlkalineSchemeUE")
   'OK
 )
