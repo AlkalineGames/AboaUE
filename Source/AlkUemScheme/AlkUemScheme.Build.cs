@@ -17,5 +17,10 @@ public class AlkUemScheme : ModuleRules {
     });
     RuntimeDependencies.Add(
       PluginDirectory + "/Source/aboa/boot.aboa");
+    // !!! needed for aboa-s7.c when compiled for Android in Xcode on macOS:
+    ShadowVariableWarningLevel = WarningLevel.Warning;
+    bEnableUndefinedIdentifierWarnings = false;
+      // ^ note: deprecated in UE 5.5 which uses this instead:
+      //UndefinedIdentifierWarningLevel = WarningLevel.Warning;
   }
 }
