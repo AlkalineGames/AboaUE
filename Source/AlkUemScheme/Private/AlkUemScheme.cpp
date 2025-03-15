@@ -27,6 +27,8 @@ auto FAlkUemScheme::runCodeAtPath(
   auto codeiter = codeCacheMutant.find(path);
   if (codeiter == codeCacheMutant.end() || forceReload) {
     auto code = loadSchemeUeCode(path);
+    if (codeiter != codeCacheMutant.end())
+      codeCacheMutant.erase(codeiter);
     codeCacheMutant.emplace(
       std::make_pair(path, code)); // TODO: $$$ OPTIMIZE COPIES
     return runSchemeUeCode(*sessionMutant, code, callee, args);
