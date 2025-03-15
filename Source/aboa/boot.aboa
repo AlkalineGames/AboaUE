@@ -1,10 +1,10 @@
-# Copyright 2023 - 2024 Alkaline Games, LLC.
+# Copyright © 2023 - 2025 Alkaline Games, LLC.
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# AlkalineScemeUE boot program
+# AboaUE boot program
 
 (begin
   (~ tracing-to-log   $f)
@@ -17,7 +17,7 @@
   (< (trace-format-values form . vals)
         (? tracing (trace-string (apply format $f form vals))))
 
-  (trace "BEGIN booting AlkalineSchemeUE..")
+  (trace "BEGIN booting AboaUE..")
 
   (< (hook-player-input world device action durations func)
     ## TODO: @@@ ASSUMING 'pointing DEVICE
@@ -32,17 +32,17 @@
     (ue-bind-input-touch world 'repeated
       (<__ (finger location) (trace-event "repeated" finger location))))
 
-  (< (open-scheme-editor screen-pos)
+  (< (open-aboa-editor screen-pos)
     ## TODO: ### IMPLEMENT
-    (trace-format-values "(open-scheme-editor ~A)" screen-pos))
+    (trace-format-values "(open-aboa-editor ~A)" screen-pos))
 
   (ue-hook-on-world-begin-play
     (<__ (world)
       (trace "lambda from (ue-hook-on-world-initialized-actors)")
-      (ue-print-string world "Alkaline Scheme is alive")
+      (ue-print-string world "AboaUE is active")
       (hook-player-input world 'pointing 'press '(200 0 200 0)
         (<__ (screen-pos) (open-scheme-editor screen-pos)))))
 
-  (trace "..END booting AlkalineSchemeUE")
+  (trace "..END booting AboaUE")
   'OK
 )
