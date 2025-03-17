@@ -1,4 +1,4 @@
-// Copyright 2023 Alkaline Games, LLC.
+// Copyright © 2023 - 2025 Alkaline Games, LLC.
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -12,20 +12,20 @@
 
 #include <Modules/ModuleInterface.h>
 
-class FAlkUemScheme : public IModuleInterface {
+class FAboaUem : public IModuleInterface {
 public:
-  virtual void StartupModule() override;
+  virtual void StartupModule()  override;
   virtual void ShutdownModule() override;
 
   auto runCodeAtPath(
-    FString             const & path,
-    FString             const & callee = "",
-    AlkSchemeUeDataDict const & args = AlkSchemeUeDataDict(),
-    bool                        forceReload = false
-  ) -> AlkSchemeUeDataDict;
+    FString         const & path,
+    FString         const & callee = "",
+    AboaUeDataDict  const & args = AboaUeDataDict(),
+    bool                    forceReload = false
+  ) -> AboaUeDataDict;
     // ^ caches and auto-loads observed file changes
 
 private:
-  std::unique_ptr<AlkSchemeUeMutant> sessionMutant;
-  std::map<FString, AlkSchemeUeCode> codeCacheMutant;
+  std::unique_ptr<AboaUeMutant> sessionMutant;
+  std::map<FString, AboaUeCode> codeCacheMutant;
 };

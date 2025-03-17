@@ -1,4 +1,4 @@
-// Copyright 2023 - 2024 Alkaline Games, LLC.
+// Copyright © 2023 - 2025 Alkaline Games, LLC.
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -7,12 +7,12 @@
 #pragma once
 
 // NOTE: !!! std::any fails to cast across shared libraries on macOS
-#define ALK_SCHEME_UE_STD_ANY 1
-#if ALK_SCHEME_UE_STD_ANY
+#define ABOA_UE_STD_ANY 1
+#if ABOA_UE_STD_ANY
 #include <any>
-typedef std::any AlkSchemeUeDataAny;
+typedef std::any AboaUeDataAny;
 #else
-typedef void * AlkSchemeUeDataAny;
+typedef void * AboaUeDataAny;
   // ^ TODO: @@@ placeholder for possible rewrite
 #endif
 
@@ -20,86 +20,86 @@ typedef void * AlkSchemeUeDataAny;
 
 struct s7_scheme;
 
-struct AlkSchemeUeCode {
+struct AboaUeCode {
   FString const path;
   FString const source;
 };
 
-enum struct AlkSchemeUeDataType {
+enum struct AboaUeDataType {
   Nothing, Bool, String, Uobject, Vector, VectorArray
 };
 
-struct AlkSchemeUeDataRef {
-  AlkSchemeUeDataAny  const any;
-  AlkSchemeUeDataType const type;
+struct AboaUeDataRef {
+  AboaUeDataAny   const any;
+  AboaUeDataType  const type;
 };
 
-struct AlkSchemeUeDataArg {
-  FString             const name;
-  AlkSchemeUeDataRef  const ref;
+struct AboaUeDataArg {
+  FString         const name;
+  AboaUeDataRef   const ref;
 };
 
-typedef std::map<FString, AlkSchemeUeDataRef>
-  AlkSchemeUeDataDict;
+typedef std::map<FString, AboaUeDataRef>
+  AboaUeDataDict;
 
-struct AlkSchemeUeState {
+struct AboaUeState {
   FString const scmPath;
 };
 
-struct AlkSchemeUeMutant {
-  AlkSchemeUeState const state;
+struct AboaUeMutant {
+  AboaUeState const state;
   s7_scheme * const s7session;
     // ^ we cannot use std::shared_ptr<s7_scheme>
     //              or std::unique_ptr<s7_scheme>
     // because struct s7_scheme is incomplete in s7.h
 };
 
-auto bootAlkSchemeUe() -> AlkSchemeUeMutant;
+auto bootAboaUe() -> AboaUeMutant;
 
-auto loadSchemeUeCode(
-  FString const &path) -> AlkSchemeUeCode;
+auto loadAboaUeCode(
+  FString const &path) -> AboaUeCode;
 
-auto runSchemeUeCode(
-  AlkSchemeUeMutant   const & mutant,
-  AlkSchemeUeCode     const & code,
-  FString             const & callee = "",
-  AlkSchemeUeDataDict const & args = AlkSchemeUeDataDict()
-) -> AlkSchemeUeDataDict;
-
-auto ABOAUEM_API
-makeSchemeUeDataDict(
-  std::initializer_list<AlkSchemeUeDataArg> const &
-) -> AlkSchemeUeDataDict;
+auto runAboaUeCode(
+  AboaUeMutant    const & mutant,
+  AboaUeCode      const & code,
+  FString         const & callee = "",
+  AboaUeDataDict  const & args = AboaUeDataDict()
+) -> AboaUeDataDict;
 
 auto ABOAUEM_API
-makeSchemeUeDataString(FString const &) -> AlkSchemeUeDataRef;
+makeAboaUeDataDict(
+  std::initializer_list<AboaUeDataArg> const &
+) -> AboaUeDataDict;
 
 auto ABOAUEM_API
-makeSchemeUeDataUobject(UObject const &) -> AlkSchemeUeDataRef;
+makeAboaUeDataString(FString const &) -> AboaUeDataRef;
 
 auto ABOAUEM_API
-makeSchemeUeDataVector(FVector const &) -> AlkSchemeUeDataRef;
+makeAboaUeDataUobject(UObject const &) -> AboaUeDataRef;
 
 auto ABOAUEM_API
-makeSchemeUeDataVectorArray(TArray<FVector> const &) -> AlkSchemeUeDataRef;
+makeAboaUeDataVector(FVector const &) -> AboaUeDataRef;
 
 auto ABOAUEM_API
-stringFromSchemeUeDataDict(
-  AlkSchemeUeDataDict const & dict,
-  FString             const & key
+makeAboaUeDataVectorArray(TArray<FVector> const &) -> AboaUeDataRef;
+
+auto ABOAUEM_API
+stringFromAboaUeDataDict(
+  AboaUeDataDict  const & dict,
+  FString         const & key
 ) -> FString;
 
 auto ABOAUEM_API
-vectorArrayFromSchemeUeDataDict(
-  AlkSchemeUeDataDict const & dict,
-  FString             const & key
+vectorArrayFromAboaUeDataDict(
+  AboaUeDataDict  const & dict,
+  FString         const & key
 ) -> TArray<FVector>;
 
 auto ABOAUEM_API
-runCachedSchemeUeCodeAtPath(
-  FString             const & path,
-  FString             const & callee,
-  AlkSchemeUeDataDict const & args = AlkSchemeUeDataDict(),
-  bool                        forceReload = false
-) -> AlkSchemeUeDataDict;
+runCachedAboaUeCodeAtPath(
+  FString         const & path,
+  FString         const & callee,
+  AboaUeDataDict  const & args = AboaUeDataDict(),
+  bool                    forceReload = false
+) -> AboaUeDataDict;
   // ^ caches and auto-loads observed file changes

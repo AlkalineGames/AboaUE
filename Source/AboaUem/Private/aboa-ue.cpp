@@ -480,7 +480,7 @@ static auto function_help_string(
   return std::string("(") + name + args + ")";
 }
 
-auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
+auto bootAboaUe() -> AboaUeMutant {
   auto s7session = s7_init();
   if (!s7session) {
     UE_LOG(LogAlkScheme, Error, TEXT("Failed to init s7 Scheme"))
@@ -523,31 +523,31 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
     ? "..END" : "FAILED";
   UE_LOG(LogAlkScheme, Display, TEXT("%s"), *result);
 #endif
-  AlkSchemeUeMutant const mutant = {{scmPath}, s7session};
-  auto const code = loadSchemeUeCode(
+  AboaUeMutant const mutant = {{scmPath}, s7session};
+  auto const code = loadAboaUeCode(
     FPaths::Combine(scmPath, TEXT("boot.aboa")));
   if (!code.source.IsEmpty()) {
-    auto result = runSchemeUeCode(mutant, code);
+    auto result = runAboaUeCode(mutant, code);
     UE_LOG(LogAlkScheme, Log, TEXT("Scheme session booted: %s"),
-      *stringFromSchemeUeDataDict(result, "result")
+      *stringFromAboaUeDataDict(result, "result")
     );
   }
   return mutant;
 }
 
-auto loadSchemeUeCode(FString const &path) -> AlkSchemeUeCode {
+auto loadAboaUeCode(FString const &path) -> AboaUeCode {
   FString mutSource;
   if (!FFileHelper::LoadFileToString(mutSource, *path, FFileHelper::EHashOptions::None))
     UE_LOG(LogAlkScheme, Error, TEXT("Failed to read %s"), *path)
   return {path, mutSource};
 }
 
-auto runSchemeUeCode(
-  AlkSchemeUeMutant   const & mutant,
-  AlkSchemeUeCode     const & code,
-  FString             const & callee,
-  AlkSchemeUeDataDict const & args
-) -> AlkSchemeUeDataDict {
+auto runAboaUeCode(
+  AboaUeMutant    const & mutant,
+  AboaUeCode      const & code,
+  FString         const & callee,
+  AboaUeDataDict  const & args
+) -> AboaUeDataDict {
   bool const willCall = !callee.IsEmpty();
   std::string mutCallExpr = "(";
   mutCallExpr += TCHAR_TO_ANSI(*callee);
@@ -557,35 +557,35 @@ auto runSchemeUeCode(
     auto & ref = arg.second;
     s7_pointer s7value = s7_nil(mutant.s7session);
     switch (ref.type) {
-      case AlkSchemeUeDataType::Bool : {
+      case AboaUeDataType::Bool : {
         // TODO: ### IMPLEMENT TYPE
         break;
       }
-      case AlkSchemeUeDataType::String : {
+      case AboaUeDataType::String : {
         // TODO: ### IMPLEMENT TYPE
         break;
       }
-      case AlkSchemeUeDataType::Uobject : {
+      case AboaUeDataType::Uobject : {
         auto op = ueObjectPtrFromAny(ref.any);
         if (!op) UE_LOG(LogAlkScheme, Error,
-          TEXT("runSchemeUeCode(...) arg type is not a Uobject"))
+          TEXT("runAboaUeCode(...) arg type is not a Uobject"))
         else
           s7value = s7_make_c_pointer(
             mutant.s7session, const_cast<UObject *>(op));
         break;
       }
-      case AlkSchemeUeDataType::Vector : {
+      case AboaUeDataType::Vector : {
         auto vp = ueVectorPtrFromAny(ref.any);
         if (!vp) UE_LOG(LogAlkScheme, Error,
-          TEXT("runSchemeUeCode(...) arg type is not Vector"));
+          TEXT("runAboaUeCode(...) arg type is not Vector"));
         s7value = scheme_ue_vector(
           mutant.s7session, vp ? *vp : FVector());
         break;
       }
-      case AlkSchemeUeDataType::VectorArray : {
+      case AboaUeDataType::VectorArray : {
         auto vap = ueVectorArrayPtrFromAny(ref.any);
         if (!vap) UE_LOG(LogAlkScheme, Error,
-          TEXT("runSchemeUeCode(...) arg type is not VectorArray"));
+          TEXT("runAboaUeCode(...) arg type is not VectorArray"));
         s7value = scheme_ue_vector_array(
           mutant.s7session, vap ? *vap : TArray<FVector>());
         break;
@@ -611,18 +611,18 @@ auto runSchemeUeCode(
   }
   auto ref =
     s7_is_float_vector(s7obj)
-    ? makeSchemeUeDataVector( // TODO: ### ALLOCATED
+    ? makeAboaUeDataVector( // TODO: ### ALLOCATED
         alloc_ue_vector_from_s7(s7obj))
     : (s7_is_vector(s7obj)
        && (s7_vector_length(s7obj) > 0)
        && s7_is_float_vector(s7_vector_elements(s7obj)[0]))
-      ? makeSchemeUeDataVectorArray( // TODO: ### ALLOCATED
+      ? makeAboaUeDataVectorArray( // TODO: ### ALLOCATED
           alloc_ue_vector_array_from_s7(mutant.s7session, s7obj))
       // ### TODO HANDLE OTHER TYPES
-      : makeSchemeUeDataString(
+      : makeAboaUeDataString(
           *new FString(ANSI_TO_TCHAR(
             s7_object_to_c_string(mutant.s7session, s7obj))));
-  auto result = makeSchemeUeDataDict({{"result", ref}});
+  auto result = makeAboaUeDataDict({{"result", ref}});
   while (!mutProtectStack.empty()) {
     s7_gc_unprotect_at(mutant.s7session, mutProtectStack.top());
     mutProtectStack.pop();
@@ -630,29 +630,29 @@ auto runSchemeUeCode(
   return result;
 }
 
-auto makeSchemeUeDataDict(
-  std::initializer_list<AlkSchemeUeDataArg> const & args
-) -> AlkSchemeUeDataDict {
-  auto dict = AlkSchemeUeDataDict();
+auto makeAboaUeDataDict(
+  std::initializer_list<AboaUeDataArg> const & args
+) -> AboaUeDataDict {
+  auto dict = AboaUeDataDict();
   for (auto & arg : args)
     dict.emplace(std::make_pair(arg.name, arg.ref));
   return dict;
 }
 
-auto makeSchemeUeDataString(FString const & data) -> AlkSchemeUeDataRef {
-  return {&data, AlkSchemeUeDataType::String};
+auto makeAboaUeDataString(FString const & data) -> AboaUeDataRef {
+  return {&data, AboaUeDataType::String};
 }
 
-auto makeSchemeUeDataVector(FVector const & data) -> AlkSchemeUeDataRef {
-  return {&data, AlkSchemeUeDataType::Vector};
+auto makeAboaUeDataVector(FVector const & data) -> AboaUeDataRef {
+  return {&data, AboaUeDataType::Vector};
 }
 
-auto makeSchemeUeDataUobject(UObject const & data) -> AlkSchemeUeDataRef {
-  return {&data, AlkSchemeUeDataType::Uobject};
+auto makeAboaUeDataUobject(UObject const & data) -> AboaUeDataRef {
+  return {&data, AboaUeDataType::Uobject};
 }
 
-auto makeSchemeUeDataVectorArray(TArray<FVector> const & data) -> AlkSchemeUeDataRef {
-  return {&data, AlkSchemeUeDataType::VectorArray};
+auto makeAboaUeDataVectorArray(TArray<FVector> const & data) -> AboaUeDataRef {
+  return {&data, AboaUeDataType::VectorArray};
 }
 
 static void logErrorMap(
@@ -668,11 +668,11 @@ static void logErrorMap(
 }
 
 static auto schemeUeDataRefInDict(
-  char const *        const   callerName,
-  AlkSchemeUeDataDict const & dict,
-  FString             const & key,
-  AlkSchemeUeDataType         type
-) -> AlkSchemeUeDataRef const * {
+  char const *    const   callerName,
+  AboaUeDataDict  const & dict,
+  FString         const & key,
+  AboaUeDataType          type
+) -> AboaUeDataRef const * {
   auto iter = dict.find(key);
   if (iter == dict.end())
     logErrorMap("Failed to find", callerName, key);
@@ -683,16 +683,16 @@ static auto schemeUeDataRefInDict(
   return nullptr;
 }
 
-auto stringFromSchemeUeDataDict(
-  AlkSchemeUeDataDict const & dict,
-  FString             const & key
+auto stringFromAboaUeDataDict(
+  AboaUeDataDict  const & dict,
+  FString         const & key
 ) -> FString {
   auto refOrNull = schemeUeDataRefInDict(
-    "stringFromSchemeUeDataDict", dict, key,
-    AlkSchemeUeDataType::String);
+    "stringFromAboaUeDataDict", dict, key,
+    AboaUeDataType::String);
   if (refOrNull) {
     //UE_LOG(LogAlkScheme, Warning,
-    //  TEXT("stringFromSchemeUeDataDict ref->any has_value=%s, type=%s"),
+    //  TEXT("stringFromAboaUeDataDict ref->any has_value=%s, type=%s"),
     //  ANSI_TO_TCHAR(refOrNull->any.has_value() ? "true " : "false"),
     //  ANSI_TO_TCHAR(refOrNull->any.type().name()));
     auto sp = ueStringPtrFromAny(refOrNull->any);
@@ -700,25 +700,25 @@ auto stringFromSchemeUeDataDict(
       return *sp;
     else
       UE_LOG(LogAlkScheme, Error,
-        TEXT("stringFromSchemeUeDataDict(...) arg type is not String"));
+        TEXT("stringFromAboaUeDataDict(...) arg type is not String"));
   }
   return FString();
 }
 
-auto vectorArrayFromSchemeUeDataDict(
-  AlkSchemeUeDataDict const & dict,
+auto vectorArrayFromAboaUeDataDict(
+  AboaUeDataDict const & dict,
   FString             const & key
 ) -> TArray<FVector> {
   auto refOrNull = schemeUeDataRefInDict(
-    "vectorArrayFromSchemeUeDataDict", dict, key,
-    AlkSchemeUeDataType::VectorArray);
+    "vectorArrayFromAboaUeDataDict", dict, key,
+    AboaUeDataType::VectorArray);
   if (refOrNull) {
     auto vap = ueVectorArrayPtrFromAny(refOrNull->any);
     if (vap)
       return *vap;
     else
       UE_LOG(LogAlkScheme, Error,
-        TEXT("vectorArrayFromSchemeUeDataDict(...) arg type is not VectorArray"));
+        TEXT("vectorArrayFromAboaUeDataDict(...) arg type is not VectorArray"));
   }
   return TArray<FVector>();
 }
