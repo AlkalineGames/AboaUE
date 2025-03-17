@@ -1,9 +1,9 @@
 {
   "FileVersion": 3,
-  "Version": 0.3,
-  "VersionName": "0.3-ue5021",
-  "FriendlyName": "AlkalineSchemeUE",
-  "Description": "Alkaline Scheme programming language for Unreal Engine",
+  "Version": 0.4,
+  "VersionName": "0.4-ue5021",
+  "FriendlyName": "AboaUE",
+  "Description": "Aboa programming language for Unreal Engine",
   "Category": "Programming",
   "CreatedBy": "Alkaline Games, LLC",
   "CreatedByURL": "https://alkaline.games",

@@ -1,4 +1,4 @@
-// Copyright 2023 - 2024 Alkaline Games, LLC.
+// Copyright © 2023 - 2025 Alkaline Games, LLC.
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -506,7 +506,7 @@ auto bootAlkSchemeUe() -> AlkSchemeUeMutant {
     function_help_string(name_ue_print_string_primary, " string)").c_str());
 
   FString const scmPath = PluginSubpath(
-    ANSI_TO_TCHAR("AlkalineSchemeUE"),
+    ANSI_TO_TCHAR("AboaUE"),
     ANSI_TO_TCHAR("Source/aboa"));
 #if ALK_TRACING
   UE_LOG(LogAlkScheme, Display,
