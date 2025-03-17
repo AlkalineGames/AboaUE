@@ -15,7 +15,7 @@
           (? tracing-to-log   (ue-log s))
           (? tracing-to-print (ue-print-string-primary s)))))
   (< (trace-format-values form . vals)
-        (? tracing (trace-string (apply format $f form vals))))
+        (? tracing (trace (apply format $f form vals))))
 
   (trace "BEGIN booting AboaUE..")
 
