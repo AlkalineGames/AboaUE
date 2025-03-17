@@ -97,13 +97,13 @@ auto PluginSubpath(
   FString const & subpath
 ) -> FString;
 
-auto ALKUEMSCHEME_API PluginFilePath(
+auto ABOAUEM_API PluginFilePath(
   FString const & pluginName,
   FString const & subpath,
   FString const & filename
 ) -> FString;
 
-auto ALKUEMSCHEME_API PrintStringToScreen(
+auto ABOAUEM_API PrintStringToScreen(
   FString const &       string,
   UWorld  const * const world = nullptr
 ) -> bool;

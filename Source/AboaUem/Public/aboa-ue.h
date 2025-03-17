@@ -66,36 +66,36 @@ auto runSchemeUeCode(
   AlkSchemeUeDataDict const & args = AlkSchemeUeDataDict()
 ) -> AlkSchemeUeDataDict;
 
-auto ALKUEMSCHEME_API
+auto ABOAUEM_API
 makeSchemeUeDataDict(
   std::initializer_list<AlkSchemeUeDataArg> const &
 ) -> AlkSchemeUeDataDict;
 
-auto ALKUEMSCHEME_API
+auto ABOAUEM_API
 makeSchemeUeDataString(FString const &) -> AlkSchemeUeDataRef;
 
-auto ALKUEMSCHEME_API
+auto ABOAUEM_API
 makeSchemeUeDataUobject(UObject const &) -> AlkSchemeUeDataRef;
 
-auto ALKUEMSCHEME_API
+auto ABOAUEM_API
 makeSchemeUeDataVector(FVector const &) -> AlkSchemeUeDataRef;
 
-auto ALKUEMSCHEME_API
+auto ABOAUEM_API
 makeSchemeUeDataVectorArray(TArray<FVector> const &) -> AlkSchemeUeDataRef;
 
-auto ALKUEMSCHEME_API
+auto ABOAUEM_API
 stringFromSchemeUeDataDict(
   AlkSchemeUeDataDict const & dict,
   FString             const & key
 ) -> FString;
 
-auto ALKUEMSCHEME_API
+auto ABOAUEM_API
 vectorArrayFromSchemeUeDataDict(
   AlkSchemeUeDataDict const & dict,
   FString             const & key
 ) -> TArray<FVector>;
 
-auto ALKUEMSCHEME_API
+auto ABOAUEM_API
 runCachedSchemeUeCodeAtPath(
   FString             const & path,
   FString             const & callee,

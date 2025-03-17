@@ -17,7 +17,7 @@
   "Installed": true,
   "Modules": [
     {
-      "Name": "AlkUemScheme",
+      "Name": "AboaUem",
       "Type": "Runtime",
       "LoadingPhase": "PostEngineInit"
     }

@@ -6,8 +6,8 @@
 //
 using UnrealBuildTool;
 
-public class AlkUemScheme : ModuleRules {
-  public AlkUemScheme(ReadOnlyTargetRules Target) : base(Target) {
+public class AboaUem : ModuleRules {
+  public AboaUem(ReadOnlyTargetRules Target) : base(Target) {
     DefaultBuildSettings = BuildSettingsVersion.V2;
     IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_1;
     PrivateDependencyModuleNames.AddRange(new string[] {
