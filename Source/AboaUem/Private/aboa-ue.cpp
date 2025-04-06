@@ -44,6 +44,20 @@ scheme_arg_c_pointer_or_error(
 }
 
 static auto
+scheme_arg_float_vector_or_error(
+  s7_scheme *  const s7,
+  s7_pointer   const arg,
+  int          const index,
+  char const * const name
+) -> std::variant<s7pointerValid,s7pointerError> {
+  if (s7_is_float_vector(arg))
+    return s7pointerValid({arg});
+  else
+    return s7pointerError({s7_wrong_type_arg_error(
+      s7, name, index, arg, "a float vector")});
+}
+
+static auto
 scheme_arg_procedure_or_error(
   s7_scheme *  const s7,
   s7_pointer   const arg,
@@ -203,6 +217,43 @@ call_lambda_with_s7_string(
     return std::get<1>(arg).pointer;
   lambda(ANSI_TO_TCHAR(std::get<0>(arg)));
   return s7_t(s7);
+}
+
+static auto const name_ue_actor_get_location = "ue-actor-get-location";
+static auto
+ue_actor_get_location(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argactor = scheme_arg_typed_or_error<AActor>(
+    s7, s7_car(args), 1, "actor");
+  if (argactor.index() == 1)
+    return std::get<1>(argactor).pointer;
+  auto const actor = std::get<0>(argactor);
+  if (!actor)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  return scheme_ue_vector(s7, actor->GetActorLocation());
+}
+
+static auto const name_ue_actor_set_location = "ue-actor-set-location";
+static auto
+ue_actor_set_location(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argactor = scheme_arg_typed_or_error<AActor>(
+    s7, s7_car(args), 1, "actor");
+  if (argactor.index() == 1)
+    return std::get<1>(argactor).pointer;
+  auto actor = std::get<0>(argactor);
+  if (!actor)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  // TODO: ### FOR NOW ASSUME s7_float_vector RETURNED FROM ue-actor-get-location
+  auto const arglocation = scheme_arg_float_vector_or_error(
+    s7, s7_cadr(args), 2, "location");
+  if (arglocation.index() == 1)
+    return std::get<1>(arglocation).pointer;
+  auto const location = std::get<0>(arglocation).pointer;
+  return const_cast<AActor*>(actor)->SetActorLocation(
+    ue_vector_from_s7(location),
+    false,    // bool bSweep
+    nullptr,  // FHitResult* OutSweepHitResult
+    ETeleportType::None
+  ) ? s7_t(s7) : s7_f(s7);
 }
 
 class UInputBinding : public UObject {
@@ -487,11 +538,17 @@ auto bootAboaUe() -> AboaUeMutant {
     return {};
   }
   s7_define_function(s7session,
+    name_ue_actor_get_location, ue_actor_get_location, 1, 0, false,
+    function_help_string(  name_ue_actor_get_location,  " actor").c_str());
+  s7_define_function(s7session,
+    name_ue_actor_set_location, ue_actor_set_location, 2, 0, false,
+    function_help_string(  name_ue_actor_set_location, " actor location").c_str());
+  s7_define_function(s7session,
     name_ue_bind_input_action, ue_bind_input_action, 4, 0, false,
-    function_help_string(name_ue_bind_input_touch, " input action handler").c_str());
+    function_help_string( name_ue_bind_input_action, " pawn action input handler").c_str());
   s7_define_function(s7session,
     name_ue_bind_input_touch, ue_bind_input_touch, 3, 0, false,
-    function_help_string(name_ue_bind_input_touch, " input touch handler").c_str());
+    function_help_string(name_ue_bind_input_touch, " world event handler").c_str());
   s7_define_function(s7session,
     name_ue_hook_on_world_begin_play, ue_hook_on_world_begin_play, 1, 0, false,
     function_help_string(name_ue_hook_on_world_begin_play, " handler").c_str());
