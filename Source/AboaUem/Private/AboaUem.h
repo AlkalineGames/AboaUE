@@ -17,6 +17,11 @@ public:
   virtual void StartupModule()  override;
   virtual void ShutdownModule() override;
 
+  auto callCode(
+    FString         const & callee = "",
+    AboaUeDataDict  const & args = AboaUeDataDict()
+  ) -> AboaUeDataDict;
+
   auto runCodeAtPath(
     FString         const & path,
     FString         const & callee = "",

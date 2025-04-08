@@ -18,6 +18,13 @@ void FAboaUem::ShutdownModule() {
     s7_free(sessionMutant->s7session);
 }
 
+auto FAboaUem::callCode( // declaration in aboa-ue.h
+  FString         const & callee,
+  AboaUeDataDict  const & args
+) -> AboaUeDataDict {
+  return callAboaUeCode(*sessionMutant, callee, args);
+}
+
 auto FAboaUem::runCodeAtPath(
   FString         const & path,
   FString         const & callee,
@@ -39,6 +46,16 @@ auto FAboaUem::runCodeAtPath(
 static
 auto accessAboaUemMutant() -> FAboaUem * {
   return FModuleManager::Get().GetModulePtr<FAboaUem>("AboaUem");
+}
+
+auto callLoadedAboaUeCode( // declaration in aboa-ue.h
+  FString         const & callee,
+  AboaUeDataDict  const & args
+) -> AboaUeDataDict {
+  auto uem = accessAboaUemMutant();
+  return uem ? uem->callCode(callee, args)
+             : // TODO: TEXT("## Failed to access AboaUem");
+               AboaUeDataDict();
 }
 
 auto runCachedAboaUeCodeAtPath( // declaration in aboa-ue.h

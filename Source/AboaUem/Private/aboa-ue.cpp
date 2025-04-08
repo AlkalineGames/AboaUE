@@ -599,15 +599,32 @@ auto loadAboaUeCode(FString const &path) -> AboaUeCode {
   return {path, mutSource};
 }
 
-auto runAboaUeCode(
+auto makeAboaUeResult(
+  AboaUeMutant  const & mutant,
+  s7_pointer    const & s7obj
+) -> AboaUeDataDict {
+  auto ref =
+    s7_is_float_vector(s7obj)
+    ? makeAboaUeDataVector( // TODO: ### ALLOCATED
+        alloc_ue_vector_from_s7(s7obj))
+    : (s7_is_vector(s7obj)
+       && (s7_vector_length(s7obj) > 0)
+       && s7_is_float_vector(s7_vector_elements(s7obj)[0]))
+      ? makeAboaUeDataVectorArray( // TODO: ### ALLOCATED
+          alloc_ue_vector_array_from_s7(mutant.s7session, s7obj))
+      // ### TODO HANDLE OTHER TYPES
+      : makeAboaUeDataString(
+          *new FString(ANSI_TO_TCHAR(
+            s7_object_to_c_string(mutant.s7session, s7obj))));
+  return makeAboaUeDataDict({{"result", ref}});
+}
+
+auto callAboaUeCode(
   AboaUeMutant    const & mutant,
-  AboaUeCode      const & code,
   FString         const & callee,
   AboaUeDataDict  const & args
 ) -> AboaUeDataDict {
-  bool const willCall = !callee.IsEmpty();
-  std::string mutCallExpr = "(";
-  mutCallExpr += TCHAR_TO_ANSI(*callee);
+  auto mutCallExpr = std::string("(") + TCHAR_TO_ANSI(*callee);
   std::stack<s7_int> mutProtectStack;
   for (auto & arg : args) {
     auto & key = arg.first;
@@ -649,42 +666,34 @@ auto runAboaUeCode(
       }
     }
     //UE_LOG(LogAlkScheme, Error, TEXT("s7_define_variable %s %d"), *arg.first, &ref.any)
-    auto argName = std::string(willCall ? "arg--" : "")
-                 + TCHAR_TO_ANSI(*key);
-    if (willCall) {
-      mutCallExpr += " " ;
-      mutCallExpr += argName;
-    }
+    auto argName = std::string("arg--") + TCHAR_TO_ANSI(*key);
+    mutCallExpr += " " ;
+    mutCallExpr += argName;
     mutProtectStack.push(
       s7_gc_protect(mutant.s7session,
         s7_define_constant(mutant.s7session, argName.c_str(), s7value)));
   }
-  auto s7obj = s7_eval_c_string(
-    mutant.s7session, TCHAR_TO_ANSI(*code.source));
-  if (willCall) {
-    mutCallExpr += ')';
-    s7obj = s7_eval_c_string(
-      mutant.s7session, mutCallExpr.c_str());
-  }
-  auto ref =
-    s7_is_float_vector(s7obj)
-    ? makeAboaUeDataVector( // TODO: ### ALLOCATED
-        alloc_ue_vector_from_s7(s7obj))
-    : (s7_is_vector(s7obj)
-       && (s7_vector_length(s7obj) > 0)
-       && s7_is_float_vector(s7_vector_elements(s7obj)[0]))
-      ? makeAboaUeDataVectorArray( // TODO: ### ALLOCATED
-          alloc_ue_vector_array_from_s7(mutant.s7session, s7obj))
-      // ### TODO HANDLE OTHER TYPES
-      : makeAboaUeDataString(
-          *new FString(ANSI_TO_TCHAR(
-            s7_object_to_c_string(mutant.s7session, s7obj))));
-  auto result = makeAboaUeDataDict({{"result", ref}});
+  mutCallExpr += ')';
+  auto result = makeAboaUeResult(mutant,
+    s7_eval_c_string(mutant.s7session, mutCallExpr.c_str()));
   while (!mutProtectStack.empty()) {
     s7_gc_unprotect_at(mutant.s7session, mutProtectStack.top());
     mutProtectStack.pop();
   }
   return result;
+}
+
+auto runAboaUeCode(
+  AboaUeMutant    const & mutant,
+  AboaUeCode      const & code,
+  FString         const & callee,
+  AboaUeDataDict  const & args
+) -> AboaUeDataDict {
+  auto s7obj = s7_eval_c_string(
+    mutant.s7session, TCHAR_TO_ANSI(*code.source));
+  return callee.IsEmpty()
+    ? makeAboaUeResult(mutant, s7obj)
+    : callAboaUeCode(mutant, callee, args);
 }
 
 auto makeAboaUeDataDict(

@@ -59,6 +59,12 @@ auto bootAboaUe() -> AboaUeMutant;
 auto loadAboaUeCode(
   FString const &path) -> AboaUeCode;
 
+auto callAboaUeCode(
+  AboaUeMutant    const & mutant,
+  FString         const & callee = "",
+  AboaUeDataDict  const & args = AboaUeDataDict()
+) -> AboaUeDataDict;
+
 auto runAboaUeCode(
   AboaUeMutant    const & mutant,
   AboaUeCode      const & code,
@@ -94,6 +100,12 @@ vectorArrayFromAboaUeDataDict(
   AboaUeDataDict  const & dict,
   FString         const & key
 ) -> TArray<FVector>;
+
+auto ABOAUEM_API
+callLoadedAboaUeCode(
+  FString         const & callee,
+  AboaUeDataDict  const & args = AboaUeDataDict()
+) -> AboaUeDataDict;
 
 auto ABOAUEM_API
 runCachedAboaUeCodeAtPath(
