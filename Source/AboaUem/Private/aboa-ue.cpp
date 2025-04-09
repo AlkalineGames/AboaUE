@@ -18,6 +18,7 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 #include "HAL/PlatformFileManager.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/FileHelper.h"
 
 #include <array>
@@ -46,6 +47,20 @@ scheme_arg_c_pointer_or_error(
   else
     return s7pointerError({s7_wrong_type_arg_error(
       s7, name, index, arg, "a C pointer")});
+}
+
+static auto
+scheme_arg_real_or_error(
+  s7_scheme *  const s7,
+  s7_pointer   const arg,
+  int          const index,
+  char const * const name
+) -> std::variant<s7_double,s7pointerError> {
+  if (s7_is_real(arg))
+    return s7_real(arg);
+  else
+    return s7pointerError({s7_wrong_type_arg_error(
+      s7, name, index, arg, "a real")});
 }
 
 static auto
@@ -163,6 +178,26 @@ scheme_arg_typed_or_error(
   if (argcptr.index() == 1)
     return std::get<1>(argcptr);
   auto const typed = const_cast<T const *>(
+    reinterpret_cast<T*>(s7_c_pointer(std::get<0>(argcptr).pointer))); // TODO: ### YIKES!
+  if (!typed)
+    return s7pointerError({s7_wrong_type_arg_error(
+      s7, name, index, arg, "no arg")});
+  else
+    return typed;
+}
+
+template <class T>
+static auto
+scheme_arg_typed_mut_or_error(
+  s7_scheme *  const s7,
+  s7_pointer   const arg,
+  int          const index,
+  char const * const name
+) -> std::variant<T *,s7pointerError> {
+  auto const argcptr = scheme_arg_c_pointer_or_error(s7, arg, index, name);
+  if (argcptr.index() == 1)
+    return std::get<1>(argcptr);
+  auto const typed = const_cast<T *>(
     reinterpret_cast<T*>(s7_c_pointer(std::get<0>(argcptr).pointer))); // TODO: ### YIKES!
   if (!typed)
     return s7pointerError({s7_wrong_type_arg_error(
@@ -539,6 +574,33 @@ ue_log(s7_scheme * s7, s7_pointer args) -> s7_pointer {
     });
 }
 
+static auto const name_ue_material_instance_dynamic_set_scalar_parameter_value
+  = "ue-material-instance-dynamic-set-scalar-parameter-value";
+static auto
+ue_material_instance_dynamic_set_scalar_parameter_value(
+  s7_scheme * s7, s7_pointer args
+) -> s7_pointer {
+  auto const arginst = scheme_arg_typed_mut_or_error<UMaterialInstanceDynamic>(
+    s7, s7_car(args), 1, "instance");
+  if (arginst.index() == 1)
+    return std::get<1>(arginst).pointer;
+  auto const argname = scheme_arg_string_or_error(
+    s7, s7_cadr(args), 2, "name");
+  if (argname.index() == 1)
+    return std::get<1>(argname).pointer;
+  auto const argvalue = scheme_arg_real_or_error(
+    s7, s7_caddr(args), 3, "value");
+  if (argvalue.index() == 1)
+    return std::get<1>(argvalue).pointer;
+  auto const instance = std::get<0>(arginst);
+  if (!instance)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  instance->SetScalarParameterValue(
+    std::get<0>(argname),
+    std::get<0>(argvalue));
+  return s7_t(s7);
+}
+
 static auto const name_ue_primitive_component_get_material
   = "ue-primitive-component-get-material";
 static auto
@@ -647,6 +709,12 @@ auto bootAboaUe() -> AboaUeMutant {
   s7_define_function(s7session,
     name_ue_log, ue_log, 1, 0, false,
     function_help_string(name_ue_log, " string").c_str());
+  s7_define_function(s7session,
+    name_ue_material_instance_dynamic_set_scalar_parameter_value,
+         ue_material_instance_dynamic_set_scalar_parameter_value,
+    3, 0, false, function_help_string(
+    name_ue_material_instance_dynamic_set_scalar_parameter_value,
+      " instance name value").c_str());
   s7_define_function(s7session,
     name_ue_primitive_component_get_material,
          ue_primitive_component_get_material,
