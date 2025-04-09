@@ -273,6 +273,19 @@ ue_actor_set_location(s7_scheme * s7, s7_pointer args) -> s7_pointer {
   ) ? s7_t(s7) : s7_f(s7);
 }
 
+static auto const name_ue_actor_get_root = "ue-actor-get-root";
+static auto
+ue_actor_get_root(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argchar = scheme_arg_typed_or_error<ACharacter>(
+    s7, s7_car(args), 1, "actor");
+  if (argchar.index() == 1)
+    return std::get<1>(argchar).pointer;
+  auto const actor = std::get<0>(argchar);
+  if (!actor)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  return s7_make_c_pointer(s7, actor->GetRootComponent());
+}
+
 static auto const name_ue_character_get_mesh = "ue-character-get-mesh";
 static auto
 ue_character_get_mesh(s7_scheme * s7, s7_pointer args) -> s7_pointer {
@@ -524,9 +537,12 @@ ue_log(s7_scheme * s7, s7_pointer args) -> s7_pointer {
     });
 }
 
-static auto const name_ue_primitive_component_get_material = "ue-primitive-component-get-material";
+static auto const name_ue_primitive_component_get_material
+  = "ue-primitive-component-get-material";
 static auto
-ue_primitive_component_get_material(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+ue_primitive_component_get_material(
+  s7_scheme * s7, s7_pointer args
+) -> s7_pointer {
   auto const argcomp = scheme_arg_typed_or_error<UPrimitiveComponent>(
     s7, s7_car(args), 1, "component");
   if (argcomp.index() == 1)
@@ -536,10 +552,9 @@ ue_primitive_component_get_material(s7_scheme * s7, s7_pointer args) -> s7_point
   if (argindex.index() == 1)
     return std::get<1>(argindex).pointer;
   auto const component = std::get<0>(argcomp);
-  if (!component)
-    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
-  auto const matindex = std::get<0>(argindex);
-  return s7_make_c_pointer(s7, component->GetMaterial(matindex));
+  return component
+    ? s7_make_c_pointer(s7, component->GetMaterial(std::get<0>(argindex)))
+    : s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
 }
 
 static auto const name_ue_print_string = "ue-print-string";
@@ -592,6 +607,9 @@ auto bootAboaUe() -> AboaUeMutant {
     name_ue_actor_set_location, ue_actor_set_location, 2, 0, false,
     function_help_string(  name_ue_actor_set_location, " actor location").c_str());
   s7_define_function(s7session,
+    name_ue_actor_get_root,     ue_actor_get_root, 1, 0, false,
+    function_help_string(  name_ue_actor_get_root, " actor").c_str());
+  s7_define_function(s7session,
     name_ue_character_get_mesh, ue_character_get_mesh, 1, 0, false,
     function_help_string(  name_ue_character_get_mesh, " character").c_str());
   s7_define_function(s7session,
@@ -607,8 +625,11 @@ auto bootAboaUe() -> AboaUeMutant {
     name_ue_log, ue_log, 1, 0, false,
     function_help_string(name_ue_log, " string").c_str());
   s7_define_function(s7session,
-    name_ue_primitive_component_get_material, ue_primitive_component_get_material, 2, 0, false,
-    function_help_string(  name_ue_primitive_component_get_material, " component index").c_str());
+    name_ue_primitive_component_get_material,
+         ue_primitive_component_get_material,
+    2, 0, false, function_help_string(
+    name_ue_primitive_component_get_material,
+      " component index").c_str());
   s7_define_function(s7session,
     name_ue_print_string, ue_print_string, 2, 0, false,
     function_help_string(name_ue_print_string, " world string)").c_str());
