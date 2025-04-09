@@ -12,6 +12,8 @@
 #include "aboa-s7.h"
 
 #include "Components/InputComponent.h"
+#include "GameFramework/Actor.h"
+#include "GameFramework/Character.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 
@@ -254,6 +256,19 @@ ue_actor_set_location(s7_scheme * s7, s7_pointer args) -> s7_pointer {
     nullptr,  // FHitResult* OutSweepHitResult
     ETeleportType::None
   ) ? s7_t(s7) : s7_f(s7);
+}
+
+static auto const name_ue_character_get_mesh = "ue-character-get-mesh";
+static auto
+ue_character_get_mesh(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argchar = scheme_arg_typed_or_error<ACharacter>(
+    s7, s7_car(args), 1, "character");
+  if (argchar.index() == 1)
+    return std::get<1>(argchar).pointer;
+  auto const character = std::get<0>(argchar);
+  if (!character)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  return s7_make_c_pointer(s7, character->GetMesh());
 }
 
 class UInputBinding : public UObject {
@@ -543,6 +558,9 @@ auto bootAboaUe() -> AboaUeMutant {
   s7_define_function(s7session,
     name_ue_actor_set_location, ue_actor_set_location, 2, 0, false,
     function_help_string(  name_ue_actor_set_location, " actor location").c_str());
+  s7_define_function(s7session,
+    name_ue_character_get_mesh, ue_character_get_mesh, 1, 0, false,
+    function_help_string(  name_ue_character_get_mesh, " character").c_str());
   s7_define_function(s7session,
     name_ue_bind_input_action, ue_bind_input_action, 4, 0, false,
     function_help_string( name_ue_bind_input_action, " pawn action input handler").c_str());
