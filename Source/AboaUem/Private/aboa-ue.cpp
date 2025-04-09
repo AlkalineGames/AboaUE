@@ -12,6 +12,7 @@
 #include "aboa-s7.h"
 
 #include "Components/InputComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 #include "HAL/PlatformFileManager.h"
@@ -57,6 +58,20 @@ scheme_arg_float_vector_or_error(
   else
     return s7pointerError({s7_wrong_type_arg_error(
       s7, name, index, arg, "a float vector")});
+}
+
+static auto
+scheme_arg_integer_or_error(
+  s7_scheme *  const s7,
+  s7_pointer   const arg,
+  int          const index,
+  char const * const name
+) -> std::variant<int,s7pointerError> {
+  if (s7_is_integer(arg))
+    return s7_integer(arg);
+  else
+    return s7pointerError({s7_wrong_type_arg_error(
+      s7, name, index, arg, "an integer")});
 }
 
 static auto
@@ -509,6 +524,24 @@ ue_log(s7_scheme * s7, s7_pointer args) -> s7_pointer {
     });
 }
 
+static auto const name_ue_primitive_component_get_material = "ue-primitive-component-get-material";
+static auto
+ue_primitive_component_get_material(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argcomp = scheme_arg_typed_or_error<UPrimitiveComponent>(
+    s7, s7_car(args), 1, "component");
+  if (argcomp.index() == 1)
+    return std::get<1>(argcomp).pointer;
+  auto const argindex = scheme_arg_integer_or_error(
+    s7, s7_cadr(args), 2, "index");
+  if (argindex.index() == 1)
+    return std::get<1>(argindex).pointer;
+  auto const component = std::get<0>(argcomp);
+  if (!component)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const matindex = std::get<0>(argindex);
+  return s7_make_c_pointer(s7, component->GetMaterial(matindex));
+}
+
 static auto const name_ue_print_string = "ue-print-string";
 static auto
 ue_print_string(s7_scheme * s7, s7_pointer args) -> s7_pointer {
@@ -573,6 +606,9 @@ auto bootAboaUe() -> AboaUeMutant {
   s7_define_function(s7session,
     name_ue_log, ue_log, 1, 0, false,
     function_help_string(name_ue_log, " string").c_str());
+  s7_define_function(s7session,
+    name_ue_primitive_component_get_material, ue_primitive_component_get_material, 2, 0, false,
+    function_help_string(  name_ue_primitive_component_get_material, " component index").c_str());
   s7_define_function(s7session,
     name_ue_print_string, ue_print_string, 2, 0, false,
     function_help_string(name_ue_print_string, " world string)").c_str());
