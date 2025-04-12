@@ -1,4 +1,4 @@
-// Copyright 2024 Alkaline Games, LLC.
+// Copyright © 2024 - 2025 Alkaline Games, LLC.
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -21,6 +21,11 @@ template <class T> auto ptrFromAny(
     std::any const & a) -> T const * {
   T const * const * pp = std::any_cast<T const *>(&a);
   return pp ? *pp : nullptr;
+}
+
+auto ueFloatPtrFromAny(
+    std::any const & a) -> float const * {
+  return ptrFromAny<float>(a);
 }
 
 auto ueStringPtrFromAny(

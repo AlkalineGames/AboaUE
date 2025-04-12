@@ -26,7 +26,7 @@ struct AboaUeCode {
 };
 
 enum struct AboaUeDataType {
-  Nothing, Bool, String, Uobject, Vector, VectorArray
+  Nothing, Bool, Float, String, Uobject, Vector, VectorArray
 };
 
 struct AboaUeDataRef {
@@ -78,6 +78,9 @@ makeAboaUeDataDict(
 ) -> AboaUeDataDict;
 
 auto ABOAUEM_API
+makeAboaUeDataFloat(float const &) -> AboaUeDataRef;
+
+auto ABOAUEM_API
 makeAboaUeDataString(FString const &) -> AboaUeDataRef;
 
 auto ABOAUEM_API
@@ -88,6 +91,12 @@ makeAboaUeDataVector(FVector const &) -> AboaUeDataRef;
 
 auto ABOAUEM_API
 makeAboaUeDataVectorArray(TArray<FVector> const &) -> AboaUeDataRef;
+
+auto ABOAUEM_API
+floatFromAboaUeDataDict(
+  AboaUeDataDict  const & dict,
+  FString         const & key
+) -> float;
 
 auto ABOAUEM_API
 stringFromAboaUeDataDict(

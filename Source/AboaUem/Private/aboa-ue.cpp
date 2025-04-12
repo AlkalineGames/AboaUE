@@ -807,6 +807,14 @@ auto callAboaUeCode(
         // TODO: ### IMPLEMENT TYPE
         break;
       }
+      case AboaUeDataType::Float : {
+        auto fp = ueFloatPtrFromAny(ref.any);
+        if (!fp) UE_LOG(LogAlkScheme, Error,
+          TEXT("runAboaUeCode(...) arg type is not a float"))
+        else
+          s7value = s7_make_real(mutant.s7session, *fp);
+        break;
+      }
       case AboaUeDataType::String : {
         // TODO: ### IMPLEMENT TYPE
         break;
@@ -877,6 +885,10 @@ auto makeAboaUeDataDict(
   return dict;
 }
 
+auto makeAboaUeDataFloat(float const & data) -> AboaUeDataRef {
+  return {&data, AboaUeDataType::Float};
+}
+
 auto makeAboaUeDataString(FString const & data) -> AboaUeDataRef {
   return {&data, AboaUeDataType::String};
 }
@@ -919,6 +931,28 @@ static auto schemeUeDataRefInDict(
   else
     return &iter->second;
   return nullptr;
+}
+
+auto floatFromAboaUeDataDict(
+  AboaUeDataDict  const & dict,
+  FString         const & key
+) -> float {
+  auto refOrNull = schemeUeDataRefInDict(
+    "floatFromAboaUeDataDict", dict, key,
+    AboaUeDataType::Float);
+  if (refOrNull) {
+    //UE_LOG(LogAlkScheme, Warning,
+    //  TEXT("floatFromAboaUeDataDict ref->any has_value=%s, type=%s"),
+    //  ANSI_TO_TCHAR(refOrNull->any.has_value() ? "true " : "false"),
+    //  ANSI_TO_TCHAR(refOrNull->any.type().name()));
+    auto fp = ueFloatPtrFromAny(refOrNull->any);
+    if (fp)
+      return *fp;
+    else
+      UE_LOG(LogAlkScheme, Error,
+        TEXT("floatFromAboaUeDataDict(...) arg type is not float"));
+  }
+  return 0.f;
 }
 
 auto stringFromAboaUeDataDict(
