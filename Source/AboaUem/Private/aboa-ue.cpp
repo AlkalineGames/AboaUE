@@ -342,6 +342,30 @@ ue_actor_has_tag(s7_scheme * s7, s7_pointer args) -> s7_pointer {
     ? s7_f(s7) : s7_t(s7);
 }
 
+static auto const name_ue_actor_match_tag = "ue-actor-match-tag";
+static auto
+ue_actor_match_tag(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argactor = scheme_arg_typed_or_error<ACharacter>(
+    s7, s7_car(args), 1, "actor");
+  if (argactor.index() == 1)
+    return std::get<1>(argactor).pointer;
+  auto const actor = std::get<0>(argactor);
+  if (!actor)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const argtag = scheme_arg_string_or_error(
+    s7, s7_cadr(args), 2, "tag");
+  if (argtag.index() == 1)
+    return std::get<1>(argtag).pointer;
+  auto const regex = FRegexPattern(std::get<0>(argtag));
+  for (auto const & uefname : actor->Tags) {
+    // TODO: @@@ ^ rewrite with FindByPredicate(...)
+    auto const uefstring = uefname.ToString();
+    if (FRegexMatcher(regex, uefstring).FindNext())
+      return s7_make_string(s7, TCHAR_TO_ANSI(*uefstring));
+  }
+  return s7_f(s7);
+}
+
 static auto const name_ue_character_get_mesh = "ue-character-get-mesh";
 static auto
 ue_character_get_mesh(s7_scheme * s7, s7_pointer args) -> s7_pointer {
@@ -764,6 +788,12 @@ auto bootAboaUe() -> AboaUeMutant {
          ue_actor_has_tag,
     2, 0, false, function_help_string(
     name_ue_actor_has_tag,
+      " actor tag").c_str());
+  s7_define_function(s7session,
+    name_ue_actor_match_tag,
+         ue_actor_match_tag,
+    2, 0, false, function_help_string(
+    name_ue_actor_match_tag,
       " actor tag").c_str());
   s7_define_function(s7session,
     name_ue_character_get_mesh,
