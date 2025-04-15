@@ -15,6 +15,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 #include "HAL/PlatformFileManager.h"
@@ -717,6 +718,25 @@ ue_scene_component_find_skeletal_mesh(s7_scheme * s7, s7_pointer args) -> s7_poi
   return s7_nil(s7);
 }
 
+static auto const name_ue_world_current_destroy_actor
+                    = "ue-world-current-destroy-actor";
+static auto
+ue_world_current_destroy_actor(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const world = CurrentPlayWorld();
+  if (!world)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const argactor = scheme_arg_typed_or_error<AActor>(
+    s7, s7_car(args), 1, "actor");
+  if (argactor.index() == 1)
+    return std::get<1>(argactor).pointer;
+  auto const actor = std::get<0>(argactor);
+  if (!actor)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  return const_cast<UWorld*>(world)->DestroyActor(
+      const_cast<AActor*>(actor))
+    ? s7_t(s7) : s7_f(s7);
+}
+
 static auto function_help_string(
   char const * const name,
   char const * const args
@@ -740,14 +760,17 @@ auto bootAboaUe() -> AboaUeMutant {
     name_ue_actor_get_root,     ue_actor_get_root, 1, 0, false,
     function_help_string(  name_ue_actor_get_root, " actor").c_str());
   s7_define_function(s7session,
-    name_ue_character_get_mesh, ue_character_get_mesh, 1, 0, false,
-    function_help_string(  name_ue_character_get_mesh, " character").c_str());
-  s7_define_function(s7session,
     name_ue_actor_has_tag,
          ue_actor_has_tag,
     2, 0, false, function_help_string(
     name_ue_actor_has_tag,
       " actor tag").c_str());
+  s7_define_function(s7session,
+    name_ue_character_get_mesh,
+         ue_character_get_mesh,
+    1, 0, false, function_help_string(
+    name_ue_character_get_mesh,
+      " character").c_str());
   s7_define_function(s7session,
     name_ue_bind_input_action, ue_bind_input_action, 4, 0, false,
     function_help_string( name_ue_bind_input_action, " pawn action input handler").c_str());
@@ -790,6 +813,12 @@ auto bootAboaUe() -> AboaUeMutant {
     1, 0, false, function_help_string(
     name_ue_scene_component_find_skeletal_mesh,
     " component").c_str());
+  s7_define_function(s7session,
+    name_ue_world_current_destroy_actor,
+         ue_world_current_destroy_actor,
+    1, 0, false, function_help_string(
+    name_ue_world_current_destroy_actor,
+      " actor").c_str());
 
   FString const scmPath = PluginSubpath(
     ANSI_TO_TCHAR("AboaUE"),
