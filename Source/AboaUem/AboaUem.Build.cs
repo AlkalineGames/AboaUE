@@ -17,10 +17,12 @@ public class AboaUem : ModuleRules {
     });
     RuntimeDependencies.Add(
       PluginDirectory + "/Source/aboa/boot.aboa");
-    // !!! needed for aboa-s7.c when compiled for Android in Xcode on macOS:
     ShadowVariableWarningLevel = WarningLevel.Warning;
+      // ^ !!! needed for aboa-s7.c when compiled for Android in Xcode on macOS:
     bEnableUndefinedIdentifierWarnings = false;
       // ^ note: deprecated in UE 5.5 which uses this instead:
       //UndefinedIdentifierWarningLevel = WarningLevel.Warning;
+    //OptimizeCode = CodeOptimization.Never;
+      // ^ !!! uncomment to debug local vars that get optimized away
   }
 }
