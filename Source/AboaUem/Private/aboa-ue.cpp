@@ -787,6 +787,25 @@ ue_scene_component_find_skeletal_mesh(s7_scheme * s7, s7_pointer args) -> s7_poi
   return s7_nil(s7);
 }
 
+static auto const name_ue_scene_component_set_visibility
+  = "ue-scene-component-set-visibility";
+static auto
+ue_scene_component_set_visibility(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argchar = scheme_arg_typed_or_error<USceneComponent>(
+    s7, s7_car(args), 1, "component");
+  if (argchar.index() == 1)
+    return std::get<1>(argchar).pointer;
+  auto const component = std::get<0>(argchar);
+  if (!component)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const argtag = scheme_arg_boolean_or_error(
+    s7, s7_cadr(args), 2, "visible");
+  if (argtag.index() == 1)
+    return std::get<1>(argtag).pointer;
+  const_cast<USceneComponent*>(component)->SetVisibility(std::get<0>(argtag));
+  return s7_t(s7);
+}
+
 static auto const name_ue_world_current_destroy_actor
                     = "ue-world-current-destroy-actor";
 static auto
@@ -900,6 +919,12 @@ auto bootAboaUe() -> AboaUeMutant {
     1, 0, false, function_help_string(
     name_ue_scene_component_find_skeletal_mesh,
     " component").c_str());
+  s7_define_function(s7session,
+    name_ue_scene_component_set_visibility,
+         ue_scene_component_set_visibility,
+    2, 0, false, function_help_string(
+    name_ue_scene_component_set_visibility,
+    " component visible").c_str());
   s7_define_function(s7session,
     name_ue_world_current_destroy_actor,
          ue_world_current_destroy_actor,
