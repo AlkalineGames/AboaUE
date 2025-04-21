@@ -37,6 +37,20 @@ struct s7pointerError { s7_pointer const pointer; };
 struct s7pointerValid { s7_pointer const pointer; };
 
 static auto
+scheme_arg_boolean_or_error(
+  s7_scheme *  const s7,
+  s7_pointer   const arg,
+  int          const index,
+  char const * const name
+) -> std::variant<bool,s7pointerError> {
+  if (s7_is_boolean(arg))
+    return s7_boolean(s7, arg);
+  else
+    return s7pointerError({s7_wrong_type_arg_error(
+      s7, name, index, arg, "a boolean")});
+}
+
+static auto
 scheme_arg_c_pointer_or_error(
   s7_scheme *  const s7,
   s7_pointer   const arg,
@@ -364,6 +378,37 @@ ue_actor_match_tag(s7_scheme * s7, s7_pointer args) -> s7_pointer {
       return s7_make_string(s7, TCHAR_TO_ANSI(*uefstring));
   }
   return s7_f(s7);
+}
+
+static auto const name_ue_actor_is_hidden = "ue-actor-is-hidden";
+static auto
+ue_actor_is_hidden(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argactor = scheme_arg_typed_or_error<AActor>(
+    s7, s7_car(args), 1, "actor");
+  if (argactor.index() == 1)
+    return std::get<1>(argactor).pointer;
+  auto const actor = std::get<0>(argactor);
+  if (!actor)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  return s7_make_boolean(s7, actor->IsHidden());
+}
+
+static auto const name_ue_actor_set_hidden = "ue-actor-set-hidden";
+static auto
+ue_actor_set_hidden(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argactor = scheme_arg_typed_or_error<AActor>(
+    s7, s7_car(args), 1, "actor");
+  if (argactor.index() == 1)
+    return std::get<1>(argactor).pointer;
+  auto const actor = std::get<0>(argactor);
+  if (!actor)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const argtag = scheme_arg_boolean_or_error(
+    s7, s7_cadr(args), 2, "hidden");
+  if (argtag.index() == 1)
+    return std::get<1>(argtag).pointer;
+  const_cast<AActor*>(actor)->SetHidden(std::get<0>(argtag));
+  return s7_t(s7);
 }
 
 static auto const name_ue_character_get_mesh = "ue-character-get-mesh";
@@ -795,6 +840,18 @@ auto bootAboaUe() -> AboaUeMutant {
     2, 0, false, function_help_string(
     name_ue_actor_match_tag,
       " actor tag").c_str());
+  s7_define_function(s7session,
+    name_ue_actor_is_hidden,
+         ue_actor_is_hidden,
+    1, 0, false, function_help_string(
+    name_ue_actor_is_hidden,
+      " actor").c_str());
+  s7_define_function(s7session,
+    name_ue_actor_set_hidden,
+         ue_actor_set_hidden,
+    2, 0, false, function_help_string(
+    name_ue_actor_set_hidden,
+      " actor hidden").c_str());
   s7_define_function(s7session,
     name_ue_character_get_mesh,
          ue_character_get_mesh,
