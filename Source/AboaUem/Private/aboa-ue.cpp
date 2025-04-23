@@ -288,6 +288,53 @@ call_lambda_with_s7_string(
   return s7_t(s7);
 }
 
+static std::array attachrules_symbols {
+  std::string_view { "keep-relative" },
+  std::string_view { "keep-world" },
+  std::string_view { "snap-to-target-excluding-scale" },
+  std::string_view { "snap-to-target-including-scale" }
+};
+static std::array attachrules {
+  FAttachmentTransformRules::KeepRelativeTransform,
+  FAttachmentTransformRules::KeepWorldTransform,
+  FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+  FAttachmentTransformRules::SnapToTargetIncludingScale
+};
+
+static auto const name_ue_actor_attach_to_actor = "ue-actor-attach-to-actor";
+static auto
+ue_actor_attach_to_actor(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argactor = scheme_arg_typed_or_error<AActor>(
+    s7, s7_car(args), 1, "actor");
+  if (argactor.index() == 1)
+    return std::get<1>(argactor).pointer;
+  auto const actor = std::get<0>(argactor);
+  if (!actor)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const argparent = scheme_arg_typed_or_error<AActor>(
+    s7, s7_cadr(args), 2, "parent");
+  if (argparent.index() == 1)
+    return std::get<1>(argparent).pointer;
+  auto const parent = std::get<0>(argparent);
+  if (!parent)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const argrules = scheme_arg_symbol_index_or_error(
+    s7, s7_caddr(args), 3, "rules", attachrules_symbols.data(), attachrules_symbols.size());
+  if (argrules.index() == 1)
+    return std::get<1>(argrules).pointer;
+  auto const rules = attachrules[std::get<0>(argrules)];
+  // TODO: ### OPTIONAL ARG COUNT NOT WORKING
+  //auto const argsocket = scheme_arg_string_or_error(
+  //  s7, s7_cadddr(args), 4, "socket");
+  //auto const socket = argsocket.index() == 1
+  //  ? NAME_None : FName(*FString(ANSI_TO_TCHAR(std::get<0>(argsocket))));
+    // ^ TODO: ### ignoring error, assume default instead
+  auto const socket = NAME_None;
+  return const_cast<AActor*>(actor)->AttachToActor(
+    const_cast<AActor*>(parent), rules, socket
+  ) ? s7_t(s7) : s7_f(s7);
+}
+
 static auto const name_ue_actor_get_location = "ue-actor-get-location";
 static auto
 ue_actor_get_location(s7_scheme * s7, s7_pointer args) -> s7_pointer {
@@ -838,6 +885,14 @@ auto bootAboaUe() -> AboaUeMutant {
     UE_LOG(LogAlkScheme, Error, TEXT("Failed to init s7 Scheme"))
     return {};
   }
+  s7_define_function(s7session,
+    name_ue_actor_attach_to_actor,
+         ue_actor_attach_to_actor,
+    // TODO: ### OPTIONAL ARG COUNT NOT CALLING C++ FUNCTION
+    //3, 1, false, function_help_string(
+    3, 0, false, function_help_string(
+    name_ue_actor_attach_to_actor,
+      " actor parent rules socket").c_str());
   s7_define_function(s7session,
     name_ue_actor_get_location, ue_actor_get_location, 1, 0, false,
     function_help_string(  name_ue_actor_get_location,  " actor").c_str());
