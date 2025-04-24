@@ -335,6 +335,34 @@ ue_actor_attach_to_actor(s7_scheme * s7, s7_pointer args) -> s7_pointer {
   ) ? s7_t(s7) : s7_f(s7);
 }
 
+static std::array detachrules_symbols {
+  std::string_view { "keep-relative" },
+  std::string_view { "keep-world" }
+};
+static std::array detachrules {
+  FDetachmentTransformRules::KeepRelativeTransform,
+  FDetachmentTransformRules::KeepWorldTransform,
+};
+
+static auto const name_ue_actor_detach_from_actor = "ue-actor-detach-from-actor";
+static auto
+ue_actor_detach_from_actor(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argactor = scheme_arg_typed_or_error<AActor>(
+    s7, s7_car(args), 1, "actor");
+  if (argactor.index() == 1)
+    return std::get<1>(argactor).pointer;
+  auto const actor = std::get<0>(argactor);
+  if (!actor)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const argrules = scheme_arg_symbol_index_or_error(
+    s7, s7_cadr(args), 2, "rules", detachrules_symbols.data(), detachrules_symbols.size());
+  if (argrules.index() == 1)
+    return std::get<1>(argrules).pointer;
+  auto const rules = detachrules[std::get<0>(argrules)];
+  const_cast<AActor*>(actor)->DetachFromActor(rules);
+  return s7_t(s7);
+}
+
 static auto const name_ue_actor_get_location = "ue-actor-get-location";
 static auto
 ue_actor_get_location(s7_scheme * s7, s7_pointer args) -> s7_pointer {
@@ -893,6 +921,12 @@ auto bootAboaUe() -> AboaUeMutant {
     3, 0, false, function_help_string(
     name_ue_actor_attach_to_actor,
       " actor parent rules socket").c_str());
+  s7_define_function(s7session,
+    name_ue_actor_detach_from_actor,
+         ue_actor_detach_from_actor,
+    2, 0, false, function_help_string(
+    name_ue_actor_detach_from_actor,
+      " actor rules").c_str());
   s7_define_function(s7session,
     name_ue_actor_get_location, ue_actor_get_location, 1, 0, false,
     function_help_string(  name_ue_actor_get_location,  " actor").c_str());
