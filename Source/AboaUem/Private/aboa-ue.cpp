@@ -11,6 +11,7 @@
 
 #include "aboa-s7.h"
 
+#include "Components/ActorComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
@@ -413,6 +414,40 @@ ue_actor_get_root(s7_scheme * s7, s7_pointer args) -> s7_pointer {
   return s7_make_c_pointer(s7, actor->GetRootComponent());
 }
 
+static auto const name_ue_actor_get_scale = "ue-actor-get-scale";
+static auto
+ue_actor_get_scale(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argactor = scheme_arg_typed_or_error<AActor>(
+    s7, s7_car(args), 1, "actor");
+  if (argactor.index() == 1)
+    return std::get<1>(argactor).pointer;
+  auto const actor = std::get<0>(argactor);
+  if (!actor)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  return scheme_ue_vector(s7, actor->GetActorScale3D());
+}
+
+static auto const name_ue_actor_set_scale = "ue-actor-set-scale";
+static auto
+ue_actor_set_scale(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argactor = scheme_arg_typed_or_error<AActor>(
+    s7, s7_car(args), 1, "actor");
+  if (argactor.index() == 1)
+    return std::get<1>(argactor).pointer;
+  auto const actor = std::get<0>(argactor);
+  if (!actor)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  // TODO: ### FOR NOW ASSUME s7_float_vector RETURNED FROM ue-actor-get-scale
+  auto const argscale = scheme_arg_float_vector_or_error(
+    s7, s7_cadr(args), 2, "scale");
+  if (argscale.index() == 1)
+    return std::get<1>(argscale).pointer;
+  auto const scale = std::get<0>(argscale).pointer;
+  const_cast<AActor*>(actor)->SetActorScale3D(
+    ue_vector_from_s7(scale));
+  return s7_t(s7);
+}
+
 static auto const name_ue_actor_has_tag = "ue-actor-has-tag";
 static auto
 ue_actor_has_tag(s7_scheme * s7, s7_pointer args) -> s7_pointer {
@@ -484,6 +519,19 @@ ue_actor_set_hidden(s7_scheme * s7, s7_pointer args) -> s7_pointer {
     return std::get<1>(argtag).pointer;
   const_cast<AActor*>(actor)->SetHidden(std::get<0>(argtag));
   return s7_t(s7);
+}
+
+static auto const name_ue_actor_component_get_owner = "ue-actor-component-get-owner";
+static auto
+ue_actor_component_get_owner(s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const argcomp = scheme_arg_typed_or_error<UActorComponent>(
+    s7, s7_car(args), 1, "component");
+  if (argcomp.index() == 1)
+    return std::get<1>(argcomp).pointer;
+  auto const comp = std::get<0>(argcomp);
+  if (!comp)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  return s7_make_c_pointer(s7, comp->GetOwner());
 }
 
 static auto const name_ue_character_get_mesh = "ue-character-get-mesh";
@@ -937,6 +985,18 @@ auto bootAboaUe() -> AboaUeMutant {
     name_ue_actor_get_root,     ue_actor_get_root, 1, 0, false,
     function_help_string(  name_ue_actor_get_root, " actor").c_str());
   s7_define_function(s7session,
+    name_ue_actor_get_scale,
+         ue_actor_get_scale,
+    1, 0, false, function_help_string(
+    name_ue_actor_get_scale,
+      " actor").c_str());
+  s7_define_function(s7session,
+    name_ue_actor_set_scale,
+         ue_actor_set_scale,
+    2, 0, false, function_help_string(
+    name_ue_actor_set_scale,
+      " actor scale").c_str());
+  s7_define_function(s7session,
     name_ue_actor_has_tag,
          ue_actor_has_tag,
     2, 0, false, function_help_string(
@@ -960,6 +1020,12 @@ auto bootAboaUe() -> AboaUeMutant {
     2, 0, false, function_help_string(
     name_ue_actor_set_hidden,
       " actor hidden").c_str());
+  s7_define_function(s7session,
+    name_ue_actor_component_get_owner,
+         ue_actor_component_get_owner,
+    1, 0, false, function_help_string(
+    name_ue_actor_component_get_owner,
+      " component").c_str());
   s7_define_function(s7session,
     name_ue_character_get_mesh,
          ue_character_get_mesh,
