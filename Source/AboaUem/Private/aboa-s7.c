@@ -7600,7 +7600,7 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
 #if POINTER_32
   if (((2 * sc->heap_size * sizeof(s7_cell *)) + ((sc->heap_size - old_size) * sizeof(s7_cell))) >= SIZE_MAX)
     { /* can this happen in 64-bit land?  SIZE_MAX is unsigned int in 32-bit, unsigned long in 64 bit = UINTPTR_MAX = 18446744073709551615UL */
-      s7_warn(sc, 256, "heap size requested, %" ld64 " => %" ld64 " bytes, is greater than size_t: %u\n",
+      s7_warn(sc, 256, "heap size requested, %" ld64 " =% %" ld64 " bytes, is greater than size_t: %u\n",
 	      sc->heap_size,
 	      (2 * sc->heap_size * sizeof(s7_cell *)) + ((sc->heap_size - old_size) * sizeof(s7_cell)),
 	      SIZE_MAX);
@@ -8724,7 +8724,7 @@ static s7_pointer g_symbol(s7_scheme *sc, s7_pointer args)
   #define H_symbol "(symbol str ...) returns its string arguments concatenated and converted to a symbol"
   #define Q_symbol s7_make_circular_signature(sc, 1, 2, sc->is_symbol_symbol, sc->is_string_symbol)
 
-  /* (@ ((x 0)) (set! (symbol "x") 12)) ;symbol (a c-function) does not have a setter: (set! (symbol "x") 12)
+  /* (@ ((x 0)) (=> (symbol "x") 12)) ;symbol (a c-function) does not have a setter: (=> (symbol "x") 12)
    *   (@ (((symbol "x") 3)) x) ; bad variable ((symbol "x")
    *   (@ ((x 2)) (+ (symbol "x") 1)) ;+ first argument, x, is a symbol but should be a number
    *   maybe document this: (symbol...) just returns the symbol
@@ -9121,7 +9121,7 @@ static void slot_set_setter(s7_pointer p, s7_pointer val)
 
 static void slot_set_value_with_hook_1(s7_scheme *sc, s7_pointer slot, s7_pointer value)
 {
-  /* (set! (hook-functions *rootlet-redefinition-hook*) (list (^ (hook) (format *stderr* "~A ~A~%" (hook 'name) (hook 'value))))) */
+  /* (=> (hook-functions *rootlet-redefinition-hook*) (list (^ (hook) (format *stderr* "~A ~A~%" (hook 'name) (hook 'value))))) */
   s7_pointer symbol = slot_symbol(slot);
   if ((global_slot(symbol) == slot) &&
       (value != slot_value(slot)))
@@ -9320,7 +9320,7 @@ static s7_pointer g_unlet(s7_scheme *sc, s7_pointer unused_args)
 	   (s7_symbol_local_value(sc, sym, sc->curlet) != global_value(sym))))
 	add_slot_checked_with_id(sc, sc->w, sym, x);
     }
-  /* if (set! + -) then + needs to be overridden, but the local bit isn't set, so we have to check the actual values in the non-local case.
+  /* if (=> + -) then + needs to be overridden, but the local bit isn't set, so we have to check the actual values in the non-local case.
    *   (< (f x) (with-let (unlet) (+ x 1)))
    */
   res = sc->w;
@@ -9536,7 +9536,7 @@ to the let let, and returns let.  (varlet (curlet) 'a 1) adds 'a to the current 
 	      if (is_syntax(global_value(sym)))
 		wrong_type_error_nr(sc, sc->varlet_symbol, position_of(x, args), p, wrap_string(sc, "a non-syntactic symbol", 22));
 	      /*  without this check we can end up turning our code into gibberish:
-	       *    (set! quote 1) -> ;can't set! quote
+	       *    (=> quote 1) -> ;can't set! quote
 	       *    (varlet (rootlet) '(quote . 1)), :quote -> 1
 	       * or worse set quote to a function of one arg that tries to quote something -- infinite loop
 	       */
@@ -10158,11 +10158,11 @@ s7_pointer s7_let_set(s7_scheme *sc, s7_pointer let, s7_pointer symbol, s7_point
 
 static s7_pointer g_let_set(s7_scheme *sc, s7_pointer args)
 {
-  /* (@ ((a 1)) (set! ((curlet) 'a) 32) a) */
+  /* (@ ((a 1)) (=> ((curlet) 'a) 32) a) */
   #define H_let_set "(let-set! let sym val) sets the symbol sym's value in the let to val"
   #define Q_let_set s7_make_signature(sc, 4, sc->T, sc->is_let_symbol, sc->is_symbol_symbol, sc->T)
 
-  if (!is_pair(cdr(args))) /* (@ ((a 123.0)) (< (f) (set! (let-ref) a)) (catch $t f (^ args $f)) (f)) */
+  if (!is_pair(cdr(args))) /* (@ ((a 123.0)) (< (f) (=> (let-ref) a)) (catch $t f (^ args $f)) (f)) */
     error_nr(sc, sc->wrong_number_of_args_symbol,
 	     set_elist_3(sc, wrap_string(sc, "~S: not enough arguments: ~S", 28), sc->let_set_symbol, sc->code));
 
@@ -10367,25 +10367,25 @@ static s7_pointer g_outlet(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_set_outlet(s7_scheme *sc, s7_pointer args)
 {
-  /* (@ ((a 1)) (@ ((b 2)) (set! (outlet (curlet)) (rootlet)) ((curlet) 'a))) */
+  /* (@ ((a 1)) (@ ((b 2)) (=> (outlet (curlet)) (rootlet)) ((curlet) 'a))) */
   s7_pointer let = car(args), new_outer;
 
   if (!is_let(let))
-    wrong_type_error_nr(sc, wrap_string(sc, "set! outlet", 11), 1, let, sc->type_names[T_LET]);
+    wrong_type_error_nr(sc, wrap_string(sc, "=> outlet", 11), 1, let, sc->type_names[T_LET]);
   if (let == sc->s7_starlet)
     error_nr(sc, sc->out_of_range_symbol, set_elist_1(sc, wrap_string(sc, "can't set! (outlet *s7*)", 24)));
   if (is_immutable_let(let))
-    immutable_object_error_nr(sc, set_elist_4(sc, wrap_string(sc, "can't (set! (outlet ~S) ~S), ~S is immutable", 44), let, cadr(args), let));
+    immutable_object_error_nr(sc, set_elist_4(sc, wrap_string(sc, "can't (=> (outlet ~S) ~S), ~S is immutable", 44), let, cadr(args), let));
   new_outer = cadr(args);
   if (!is_let(new_outer))
-    wrong_type_error_nr(sc, wrap_string(sc, "set! outlet", 11), 2, new_outer, sc->type_names[T_LET]);
+    wrong_type_error_nr(sc, wrap_string(sc, "=> outlet", 11), 2, new_outer, sc->type_names[T_LET]);
   if (let != sc->rootlet)
     {
       /* here it's possible to get cyclic let chains; maybe do this check only if safety>0 */
       for (s7_pointer lt = new_outer; (is_let(lt)) && (lt != sc->rootlet); lt = let_outlet(lt))
 	if (let == lt)
 	  error_nr(sc, make_symbol(sc, "cyclic-let", 10),
-		   set_elist_2(sc, wrap_string(sc, "set! (outlet ~A) creates a cyclic let chain", 43), let));
+		   set_elist_2(sc, wrap_string(sc, "=> (outlet ~A) creates a cyclic let chain", 43), let));
       let_set_outlet(let, (new_outer == sc->rootlet) ? sc->nil : new_outer);  /* outlet rootlet->() so that slot search can use is_let(outlet) I think */
     }
   return(new_outer);
@@ -10508,7 +10508,7 @@ static s7_pointer g_symbol_to_value(s7_scheme *sc, s7_pointer args)
   #define H_symbol_to_value "(symbol->value sym (@ (curlet))) returns the binding of (the value associated with) the \
 symbol sym in the given let: (@ ((x 32)) (symbol->value 'x)) -> 32"
   #define Q_symbol_to_value s7_make_signature(sc, 3, sc->T, sc->is_symbol_symbol, sc->is_let_symbol)
-  /* (symbol->value 'x e) => (e 'x)? */
+  /* (symbol->value 'x e) =% (e 'x)? */
 
   s7_pointer sym = car(args);
   if (!is_symbol(sym))
@@ -11139,7 +11139,7 @@ void s7_define(s7_scheme *sc, s7_pointer let, s7_pointer symbol, s7_pointer valu
       if ((let == sc->shadow_rootlet) &&
 	  (!is_slot(global_slot(symbol))))
 	{
-	  set_global(symbol); /* is_global => global_slot is usable -- is this a good idea? */
+	  set_global(symbol); /* is_global =% global_slot is usable -- is this a good idea? */
 	  set_global_slot(symbol, local_slot(symbol));
 	}}
 }
@@ -11177,7 +11177,7 @@ s7_pointer s7_define_constant(s7_scheme *sc, const char *name, s7_pointer value)
 }
 
 /* (< (func a) (@ ((cvar (+ a 1))) cvar)) (define-constant cvar 23) (func 1) -> ;can't bind an immutable object: cvar
- * (@ ((aaa 1)) (define-constant aaa 32) (set! aaa 3)) -> set!: can't alter immutable object: aaa
+ * (@ ((aaa 1)) (define-constant aaa 32) (=> aaa 3)) -> set!: can't alter immutable object: aaa
  */
 
 s7_pointer s7_define_constant_with_documentation(s7_scheme *sc, const char *name, s7_pointer value, const char *help)
@@ -11830,7 +11830,7 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
        *   in, nothing hidden happens. So,
        *     (@ ((x $f) (cc $f))
        *       (let-temporarily ((x 1))
-       *         (set! x 2) (call/cc (^ (r) (set! cc r))) (display x) (unless (= x 2) (newline) (exit)) (set! x 3) (cc)))
+       *         (=> x 2) (call/cc (^ (r) (=> cc r))) (display x) (unless (= x 2) (newline) (exit)) (=> x 3) (cc)))
        *   behaves the same (in this regard) if let-temp is replaced with let.
        */
     }
@@ -14766,7 +14766,7 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, const char *name, bool with
   if (name[0] == '_')
     {
       /* this needs to be unsettable via *$readers*:
-       *    (set! *$readers* (list (cons $\_ (^ (str) (string->symbol (substring str 1))))))
+       *    (=> *$readers* (list (cons $\_ (^ (str) (string->symbol (substring str 1))))))
        *    (@ ((+ -)) ($_+ 1 2)): -1
        */
       s7_pointer sym = make_symbol_with_strlen(sc, (const char *)(name + 1));
@@ -21067,7 +21067,7 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  {
 	    s7_double den, r1 = (s7_double)integer(x), r2 = real_part(y), i2 = imag_part(y);
 	    den = 1.0 / (r2 * r2 + i2 * i2);
-	    /* we could avoid the squaring (see Knuth II p613 16), not a big deal: (/ 1.0e308+1.0e308i 2.0e308+2.0e308i) => nan, (gmp case is ok here) */
+	    /* we could avoid the squaring (see Knuth II p613 16), not a big deal: (/ 1.0e308+1.0e308i 2.0e308+2.0e308i) =% nan, (gmp case is ok here) */
 	    return(s7_make_complex(sc, r1 * r2 * den, -(r1 * i2 * den)));
 	  }
 
@@ -23033,7 +23033,7 @@ static bool is_number_via_method(s7_scheme *sc, s7_pointer p)
 
 static s7_pointer g_num_eq(s7_scheme *sc, s7_pointer args)
 {
-  #define H_num_eq "(= z1 ...) returns $t if all its arguments are equal"
+  #define H_num_eq "(== z1 ...) returns $t if all its arguments are equal" // [c4augustus]
   #define Q_num_eq s7_make_circular_signature(sc, 1, 2, sc->is_boolean_symbol, sc->is_number_symbol)
 
   s7_pointer x = car(args), p = cdr(args);
@@ -25509,7 +25509,7 @@ static double next_random(s7_pointer r)
    * can the multiply-add+logand above return 0? I'm getting 0's from (random (expt 2 62))
    */
 
-  /* (@ ((mx 0) (mn 1000)) (do ((i 0 (+ i 1))) ((= i 10000)) (@ ((val (random 123))) (set! mx (max mx val)) (set! mn (min mn val)))) (list mn mx)) */
+  /* (@ ((mx 0) (mn 1000)) (do ((i 0 (+ i 1))) ((= i 10000)) (@ ((val (random 123))) (=> mx (max mx val)) (=> mn (min mn val)))) (list mn mx)) */
   return(result);
 #else
   mpfr_urandomb(sc->mpfr_1, random_gmp_state(sc->default_random_state));
@@ -27945,13 +27945,13 @@ static s7_pointer g_set_port_position(s7_scheme *sc, s7_pointer args)
   s7_int position;
 
   if (!(is_input_port(port)))
-    wrong_type_error_nr(sc, wrap_string(sc, "set! port-position", 18), 1, port, an_input_port_string);
+    wrong_type_error_nr(sc, wrap_string(sc, "=> port-position", 18), 1, port, an_input_port_string);
   if (port_is_closed(port))
-    wrong_type_error_nr(sc, wrap_string(sc, "set! port-position", 18), 1, port, an_open_input_port_string);
+    wrong_type_error_nr(sc, wrap_string(sc, "=> port-position", 18), 1, port, an_open_input_port_string);
 
   pos = cadr(args);
   if (!is_t_integer(pos))
-    wrong_type_error_nr(sc, wrap_string(sc, "set! port-position", 18), 2, pos, sc->type_names[T_INTEGER]);
+    wrong_type_error_nr(sc, wrap_string(sc, "=> port-position", 18), 2, pos, sc->type_names[T_INTEGER]);
   position = s7_integer_clamped_if_gmp(sc, pos);
   if (position < 0)
     out_of_range_error_nr(sc, sc->port_position_symbol, int_two, pos, it_is_negative_string);
@@ -28022,11 +28022,11 @@ static s7_pointer g_set_port_line_number(s7_scheme *sc, s7_pointer args)
     {
       p = car(args);
       if (!(is_input_port(p)))
-	wrong_type_error_nr(sc, wrap_string(sc, "set! port-line-number", 21), 1, p, an_input_port_string);
+	wrong_type_error_nr(sc, wrap_string(sc, "=> port-line-number", 21), 1, p, an_input_port_string);
     }
   line = (is_null(cdr(args)) ? car(args) : cadr(args));
   if (!is_t_integer(line))
-    wrong_type_error_nr(sc, wrap_string(sc, "set! port-line-number", 21), 2, line, sc->type_names[T_INTEGER]);
+    wrong_type_error_nr(sc, wrap_string(sc, "=> port-line-number", 21), 2, line, sc->type_names[T_INTEGER]);
   port_line_number(p) = integer(line);
   return(line);
 }
@@ -31350,7 +31350,7 @@ static s7_pointer g_is_iterator(s7_scheme *sc, s7_pointer args)
 
   s7_pointer x = car(args);
   if (is_iterator(x)) return(sc->T);
-  /* closure itself is not an iterator: (@ ((c1 (@ ((+iterator+ $t) (a 0)) (^ () (set! a (+ a 1)))))) (iterate c1)): error (a function not an iterator) */
+  /* closure itself is not an iterator: (@ ((c1 (@ ((+iterator+ $t) (a 0)) (^ () (=> a (+ a 1)))))) (iterate c1)): error (a function not an iterator) */
   check_boolean_method(sc, is_iterator, sc->is_iterator_symbol, args);
   return(sc->F);
 }
@@ -32318,9 +32318,9 @@ static void slashify_string_to_port(s7_scheme *sc, s7_pointer port, const char *
    *    but that is not ideal.  I'd like to use ~S for error messages, so that
    *    strings are clearly identified via the double-quotes, but this way of
    *    writing them is ugly:
-   *      (@ ((str (make-string 8 $\null))) (set! (str 0) $\a) str) -> "a\x00\x00\x00\x00\x00\x00\x00"
+   *      (@ ((str (make-string 8 $\null))) (=> (str 0) $\a) str) -> "a\x00\x00\x00\x00\x00\x00\x00"
    *    but it would be misleading to omit them because:
-   *      (@ ((str (make-string 8 $\null))) (set! (str 0) $\a) (string-append str "bc")) -> "a\x00\x00\x00\x00\x00\x00\x00bc"
+   *      (@ ((str (make-string 8 $\null))) (=> (str 0) $\a) (string-append str "bc")) -> "a\x00\x00\x00\x00\x00\x00\x00bc"
    * also it is problematic to use sc->print_length here (rather than a separate string-print-length) because
    *    it is normally (say) 12 which truncates just about every string.  In CL, *print-length*
    *    does not affect strings, symbols, or bit-vectors.  But if the string is enormous,
@@ -32754,14 +32754,14 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			block_t *b = callocate(sc, str_len);
 			char *indices = (char *)block_data(b);
 			multivector_indices_to_string(sc, i, vect, indices, str_len, dimension); /* calls pos_int_to_str_direct, writes to indices */
-			plen = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), ">",
+			plen = catstrs_direct(buf, "  (=> (<", pos_int_to_str_direct(sc, vref), ">",
 					      indices, ") <", pos_int_to_str_direct_1(sc, eref), ">) ", (const char *)NULL);
 			port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 			liberate(sc, b);
 		      }
 		    else
 		      {
-			size_t len1 = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), "> ", integer_to_string(sc, i, &plen), ") <",
+			size_t len1 = catstrs_direct(buf, "  (=> (<", pos_int_to_str_direct(sc, vref), "> ", integer_to_string(sc, i, &plen), ") <",
 						     pos_int_to_str_direct_1(sc, eref), ">) ", (const char *)NULL);
 			port_write_string(ci->cycle_port)(sc, buf, len1, ci->cycle_port);
 		      }}
@@ -32775,13 +32775,13 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			char *indices = (char *)block_data(b);
 			buf[0] = '\0';
 			multivector_indices_to_string(sc, i, vect, indices, str_len, dimension); /* writes to indices */
-			plen = catstrs(buf, 2048, "  (set! (<", pos_int_to_str_direct(sc, vref), ">", indices, ") ", (char *)NULL);
+			plen = catstrs(buf, 2048, "  (=> (<", pos_int_to_str_direct(sc, vref), ">", indices, ") ", (char *)NULL);
 			port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 			liberate(sc, b);
 		      }
 		    else
 		      {
-			size_t len1 = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), "> ", integer_to_string_no_length(sc, i), ") ", (const char *)NULL);
+			size_t len1 = catstrs_direct(buf, "  (=> (<", pos_int_to_str_direct(sc, vref), "> ", integer_to_string_no_length(sc, i), ") ", (const char *)NULL);
 			port_write_string(ci->cycle_port)(sc, buf, len1, ci->cycle_port);
 		      }
 		    object_to_port_with_circle_check(sc, els[i], ci->cycle_port, P_READABLE, ci);
@@ -32801,7 +32801,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	    }
 	  if (is_typed_vector(vect))
 	    {
-	      port_write_string(port)(sc, ")) (set! (vector-typer <v>) ", 28, port);
+	      port_write_string(port)(sc, ")) (=> (vector-typer <v>) ", 28, port);
 	      port_write_vector_typer(sc, vect, port);
 	      port_write_string(port)(sc, ") <v>)", 6, port);
 	    }}
@@ -32809,7 +32809,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	{
 	  if (is_typed_vector(vect))
 	    port_write_string(port)(sc, "(let ((<v> ", 11, port);
-	  /* (@ ((v (make-vector 3 'a symbol?))) (object->string v :readable)): "(let ((<v> (vector 'a 'a 'a))) (set! (vector-typer <v>) symbol?) <v>)" */
+	  /* (@ ((v (make-vector 3 'a symbol?))) (object->string v :readable)): "(let ((<v> (vector 'a 'a 'a))) (=> (vector-typer <v>) symbol?) <v>)" */
 
 	  if (vector_rank(vect) > 1)
 	    port_write_string(port)(sc, "(subvector ", 11, port);
@@ -32836,7 +32836,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	    }
 	  if (is_typed_vector(vect))
 	    {
-	      port_write_string(port)(sc, ")) (set! (vector-typer <v>) ", 28, port);
+	      port_write_string(port)(sc, ")) (=> (vector-typer <v>) ", 28, port);
 	      port_write_vector_typer(sc, vect, port);
 	      port_write_string(port)(sc, ") <v>)", 6, port);
 	    }}}
@@ -33356,7 +33356,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		{
 		  if (i == 0)
 		    plen = (int32_t)catstrs_direct(buf, "  (set-car! ", lst_name, " ", (const char *)NULL);
-		  else plen = (int32_t)catstrs_direct(buf, "  (set! (", lst_name, " ", pos_int_to_str_direct(sc, i), ") ", (const char *)NULL);
+		  else plen = (int32_t)catstrs_direct(buf, "  (=> (", lst_name, " ", pos_int_to_str_direct(sc, i), ") ", (const char *)NULL);
 		  port_write_string(local_port)(sc, buf, plen, local_port);
 		  lref = peek_shared_ref(ci, car(x));
 		  if (lref == 0)
@@ -33678,7 +33678,7 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	  char buf[128];
 	  int32_t eref = peek_shared_ref(ci, val);
 	  int32_t kref = peek_shared_ref(ci, key);
-	  int32_t plen = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, href), "> ", (const char *)NULL);
+	  int32_t plen = catstrs_direct(buf, "  (=> (<", pos_int_to_str_direct(sc, href), "> ", (const char *)NULL);
 	  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 	  if (kref != 0)
 	    {
@@ -33802,7 +33802,7 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
 	{
 	  char buf[128];
 	  int32_t symref;
-	  int32_t len = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, -peek_shared_ref(ci, obj)), "> ", (const char *)NULL);
+	  int32_t len = catstrs_direct(buf, "  (=> (<", pos_int_to_str_direct(sc, -peek_shared_ref(ci, obj)), "> ", (const char *)NULL);
 	  port_write_string(port)(sc, " $f", 3, port);
 	  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 	  symbol_to_port(sc, sym, ci->cycle_port, P_KEY, NULL);
@@ -33849,7 +33849,7 @@ static bool slot_setters_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port,
     if (slot_has_setter(slot))
       {
 	if (spaced_out) port_write_character(port)(sc, ' ', port); else spaced_out = true;
-	port_write_string(port)(sc, "(set! (setter '", 15, port);
+	port_write_string(port)(sc, "(=> (setter '", 15, port);
 	symbol_to_port(sc, slot_symbol(slot), port, P_DISPLAY, NULL);
 	port_write_string(port)(sc, ") ", 2, port);
 	object_to_port_with_circle_check(sc, slot_setter(slot), port, P_READABLE, ci);
@@ -33907,7 +33907,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 
   /* circles can happen here:
    *    (@ () (@ ((b (curlet))) (curlet))):    $<let 'b $<let>>
-   * or (@ ((b $f)) (set! b (curlet)) (curlet)): $1=$<let 'b $1$>
+   * or (@ ((b $f)) (=> b (curlet)) (curlet)): $1=$<let 'b $1$>
    */
   if (use_write == P_READABLE)
     {
@@ -33928,7 +33928,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 	      (let_outlet(obj) != sc->rootlet))
 	    {
 	      char buf[128];
-	      int32_t len = (int32_t)catstrs_direct(buf, "  (set! (outlet <", pos_int_to_str_direct(sc, lref), ">) ", (const char *)NULL);
+	      int32_t len = (int32_t)catstrs_direct(buf, "  (=> (outlet <", pos_int_to_str_direct(sc, lref), ">) ", (const char *)NULL);
 	      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 	      let_to_port(sc, let_outlet(obj), ci->cycle_port, use_write, ci);
 	      port_write_string(ci->cycle_port)(sc, ") ", 2, ci->cycle_port);
@@ -33961,7 +33961,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 	    port_write_string(port)(sc, "(immutable! ", 12, port);
 
 	  /* this ignores outlet -- but is that a problem? */
-	  /* (object->string (@ ((i 0)) (set! (setter 'i) integer?) (curlet)) :readable) -> "(let ((i 0)) (set! (setter 'i) $_integer?) (curlet))" */
+	  /* (object->string (@ ((i 0)) (=> (setter 'i) integer?) (curlet)) :readable) -> "(let ((i 0)) (=> (setter 'i) $_integer?) (curlet))" */
 	  if (let_has_setter(obj))
 	    {
 	      port_write_string(port)(sc, "(let (", 6, port);
@@ -34428,7 +34428,7 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 		      ci->init_loc = gc_protect_1(sc, ci->init_port);
 		    }
 		  port_write_string(port)(sc, "$f", 2, port);
-		  nlen = (int32_t)catstrs_direct(buf, "  (set! <", pos_int_to_str_direct(sc, iter_ref), "> (make-iterator ", (const char *)NULL);
+		  nlen = (int32_t)catstrs_direct(buf, "  (=> <", pos_int_to_str_direct(sc, iter_ref), "> (make-iterator ", (const char *)NULL);
 		  port_write_string(ci->init_port)(sc, buf, nlen, ci->init_port);
 
 		  flip_ref(ci, seq);
@@ -34527,7 +34527,7 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
 		  ci->init_port = s7_open_output_string(sc);
 		  ci->init_loc = gc_protect_1(sc, ci->init_port);
 		}
-	      nlen = snprintf(buf, CP_BUFSIZE, "  (set! <%d> (c-pointer %" p64, -ref, (intptr_t)c_pointer(obj));
+	      nlen = snprintf(buf, CP_BUFSIZE, "  (=> <%d> (c-pointer %" p64, -ref, (intptr_t)c_pointer(obj));
 	      port_write_string(ci->init_port)(sc, buf, nlen, ci->init_port);
 
 	      if ((c_pointer_type(obj) != sc->F) ||
@@ -34840,7 +34840,7 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 		    {
 		      char buf[128];
 		      int32_t symref;
-		      int32_t len = (int32_t)catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, href), "> ", pos_int_to_str_direct_1(sc, i), ") ", (const char *)NULL);
+		      int32_t len = (int32_t)catstrs_direct(buf, "  (=> (<", pos_int_to_str_direct(sc, href), "> ", pos_int_to_str_direct_1(sc, i), ") ", (const char *)NULL);
 		      port_write_string(port)(sc, " $f", 3, port);
 		      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 
@@ -36106,7 +36106,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 			    i += 2;
 			    if (i >= str_len)            /* (format $f "~,'") */
 			      format_error_nr(sc, "incomplete numeric argument", 27, str, args, fdat);
-			  }}  /* is (@ ((str "~12,'xD")) (set! (str 5) $\null) (format $f str 1)) an error? */
+			  }}  /* is (@ ((str "~12,'xD")) (=> (str 5) $\null) (format $f str 1)) an error? */
 
 		switch (str[i])
 		  {
@@ -40474,7 +40474,7 @@ static s7_pointer vector_ref_1(s7_scheme *sc, s7_pointer vect, s7_pointer indice
   else
     {
       s7_pointer p = car(indices);
-      /* (@ ((hi (make-vector 3 0.0)) (sum 0.0)) (do ((i 0 (+ i 1))) ((= i 3)) (set! sum (+ sum (hi i)))) sum) */
+      /* (@ ((hi (make-vector 3 0.0)) (sum 0.0)) (do ((i 0 (+ i 1))) ((= i 3)) (=> sum (+ sum (hi i)))) sum) */
 
       if (!s7_is_integer(p))
 	return(method_or_bust(sc, p, sc->vector_ref_symbol, set_ulist_1(sc, vect, indices), sc->type_names[T_INTEGER], 2));
@@ -41277,7 +41277,7 @@ static s7_pointer g_set_vector_typer(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer v = car(args), typer = cadr(args);
   if (!is_any_vector(v))
-    wrong_type_error_nr(sc, wrap_string(sc, "set! vector-typer", 17), 1, v, sc->type_names[T_VECTOR]);
+    wrong_type_error_nr(sc, wrap_string(sc, "=> vector-typer", 17), 1, v, sc->type_names[T_VECTOR]);
   if (!is_normal_vector(v))
     {
       if (((is_int_vector(v)) && (typer != global_value(sc->is_integer_symbol))) ||
@@ -41613,7 +41613,7 @@ static s7_pointer univect_set(s7_scheme *sc, s7_pointer args, s7_pointer caller,
       s7_pointer p = cdr(args);
       if (is_null(p))
 	error_nr(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, wrap_string(sc, "not enough arguments for ~A: ~S", 31), caller, args));
-      /* from (set! (v) val) after optimization into op_set_opsq_a which is completely confused -- set! gets v's setter (float-vector-set!) */
+      /* from (=> (v) val) after optimization into op_set_opsq_a which is completely confused -- set! gets v's setter (float-vector-set!) */
       index = car(p);
       if (!s7_is_integer(index))
 	return(method_or_bust(sc, index, caller, args, sc->type_names[T_INTEGER], 2));
@@ -43154,7 +43154,7 @@ static s7_pointer g_set_hash_table_key_typer(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer h = car(args), typer = cadr(args);
   if (!is_hash_table(h))
-    wrong_type_error_nr(sc, wrap_string(sc, "set! hash_table-key-typer", 25), 1, h, sc->type_names[T_HASH_TABLE]);
+    wrong_type_error_nr(sc, wrap_string(sc, "=> hash_table-key-typer", 25), 1, h, sc->type_names[T_HASH_TABLE]);
 
   if (is_boolean(typer)) /* remove current typer, if any */
     {
@@ -43176,7 +43176,7 @@ static s7_pointer g_set_hash_table_value_typer(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer h = car(args), typer = cadr(args);
   if (!is_hash_table(h))
-    wrong_type_error_nr(sc, wrap_string(sc, "set! hash_table-value-typer", 27), 1, h, sc->type_names[T_HASH_TABLE]);
+    wrong_type_error_nr(sc, wrap_string(sc, "=> hash_table-value-typer", 27), 1, h, sc->type_names[T_HASH_TABLE]);
 
   if (is_boolean(typer)) /* remove current typer, if any */
     {
@@ -43933,7 +43933,7 @@ static int32_t len_upto_8(s7_pointer p)
 
 static s7_int hash_map_pair(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  /* len+loc(car) is not horrible, but it means (for example) every list '(set! ...) is hashed to the same location,
+  /* len+loc(car) is not horrible, but it means (for example) every list '(=> ...) is hashed to the same location,
    *   so at least we need to take cadr into account if possible.  Better would combine the list_length
    *   with stats like symbols/pairs/constants at top level, then use those to spread it out over all the locs.
    */
@@ -44348,7 +44348,7 @@ static const char *hash_table_checker_name(s7_scheme *sc, s7_pointer ht)
   if (hash_table_checker(ht) == hash_ci_char) return("char-ci=?");
 #endif
   if (hash_table_checker(ht) == hash_char) return("char=?");
-  if (hash_table_checker(ht) == hash_number_num_eq) return("=");
+  if (hash_table_checker(ht) == hash_number_num_eq) return("=="); // [c4augustus]
   return("$f");
 }
 
@@ -45060,7 +45060,7 @@ static s7_pointer make_function(s7_scheme *sc, const char *name, s7_function f, 
   c_function_call(x) = f;               /* f is T_App but needs cast */
   c_function_set_base(x, x);
   c_function_set_setter(x, sc->F);
-  c_function_name(x) = name;            /* (procedure-name proc) => (format $f "~A" proc) */
+  c_function_name(x) = name;            /* (procedure-name proc) =% (format $f "~A" proc) */
   c_function_name_length(x) = safe_strlen(name);
   c_function_documentation(x) = (doc) ? make_semipermanent_c_string(sc, doc) : NULL;
   c_function_signature(x) = sc->F;
@@ -45834,7 +45834,7 @@ each a function of no arguments, guaranteeing that finish is called even if body
        (@ ((final (^ (a b c) (list a b c))))
          (dynamic-wind
            (^ () $f)
-           (^ () (set! final (^ () (display "in final"))))
+           (^ () (=> final (^ () (display "in final"))))
            final))
    * but why not?  'final' is a thunk by the time it is evaluated. catch (the error handler) is similar.
    * It can't work here because we set up the dynamic_wind_out slot below and
@@ -46328,7 +46328,7 @@ static s7_pointer closure_arity_to_cons(s7_scheme *sc, s7_pointer x, s7_pointer 
   if (closure_arity_unknown(x))
     closure_set_arity(x, s7_list_length(sc, x_args));
   len = closure_arity(x);
-  if (len < 0)                              /* dotted list => rest arg, (length '(a b . c)) is -2 */
+  if (len < 0)                              /* dotted list =% rest arg, (length '(a b . c)) is -2 */
     return(cons(sc, make_integer(sc, -len), max_arity));
   return(cons(sc, make_integer(sc, len), make_integer_unchecked(sc, len)));
 }
@@ -46453,7 +46453,7 @@ static bool closure_is_aritable(s7_scheme *sc, s7_pointer x, s7_pointer x_args, 
       len = s7_list_length(sc, x_args);
       closure_set_arity(x, len);
     }
-  if (len < 0)                          /* dotted list => rest arg, (length '(a b . c)) is -2 */
+  if (len < 0)                          /* dotted list =% rest arg, (length '(a b . c)) is -2 */
     return((-len) <= args);             /*   so we have enough to take care of the required args */
   return(args == len);                  /* in a normal lambda list, there are no other possibilities */
 }
@@ -46582,7 +46582,7 @@ static s7_pointer b_simple_setter(s7_scheme *sc, int32_t typer, s7_pointer args)
 {
   if (type(cadr(args)) != typer)
     error_nr(sc, sc->wrong_type_arg_symbol,
-	     set_elist_5(sc, wrap_string(sc, "set! ~S, ~S is ~A but should be ~A", 34),
+	     set_elist_5(sc, wrap_string(sc, "=> ~S, ~S is ~A but should be ~A", 34),
 			 car(args), cadr(args), sc->type_names[type(cadr(args))], sc->type_names[typer]));
   return(cadr(args));
 }
@@ -46615,7 +46615,7 @@ static s7_pointer b_is_goto_setter(s7_scheme *sc, s7_pointer args)         {retu
   do {						\
     if (!typer(cadr(args)))			\
       error_nr(sc, sc->wrong_type_arg_symbol,			\
-	       set_elist_5(sc, wrap_string(sc, "set! ~S, ~S is ~A but should be ~A", 34), \
+	       set_elist_5(sc, wrap_string(sc, "=> ~S, ~S is ~A but should be ~A", 34), \
 			   car(args), cadr(args), sc->type_names[type(cadr(args))], wrap_string(sc, str, len))); \
     return(cadr(args));							\
   } while (0)
@@ -46643,7 +46643,7 @@ static s7_pointer b_is_proper_list_setter(s7_scheme *sc, s7_pointer args)
 {
   if (!s7_is_proper_list(sc, car(args)))
     error_nr(sc, sc->wrong_type_arg_symbol,
-	     set_elist_5(sc, wrap_string(sc, "set! ~S, ~S is ~A but should be ~A", 34),
+	     set_elist_5(sc, wrap_string(sc, "=> ~S, ~S is ~A but should be ~A", 34),
 			 car(args), cadr(args), sc->type_names[type(cadr(args))], wrap_string(sc, "a proper list", 13)));
   return(cadr(args));
 }
@@ -46720,7 +46720,7 @@ static s7_pointer setter_p_pp(s7_scheme *sc, s7_pointer p, s7_pointer e)
       check_method(sc, p, sc->setter_symbol, set_plist_2(sc, p, e));
       return(global_value(sc->let_set_symbol));
 
-    case T_ITERATOR:                           /* (set! (iter) val) doesn't fit the other setters */
+    case T_ITERATOR:                           /* (=> (iter) val) doesn't fit the other setters */
       return((is_any_closure(iterator_sequence(p))) ? closure_setter(iterator_sequence(p)) : sc->F);
 
     case T_PAIR:         return(global_value(sc->list_set_symbol)); /* or maybe initial-value? */
@@ -46787,23 +46787,23 @@ static s7_pointer symbol_set_setter(s7_scheme *sc, s7_pointer sym, s7_pointer ar
 {
   s7_pointer func, slot;
   if (is_keyword(sym))
-    wrong_type_error_nr(sc, wrap_string(sc, "set! setter", 11), 1, sym, wrap_string(sc, "a normal symbol (a keyword can't be set)", 40));
+    wrong_type_error_nr(sc, wrap_string(sc, "=> setter", 11), 1, sym, wrap_string(sc, "a normal symbol (a keyword can't be set)", 40));
 
   if (is_pair(cddr(args)))
     {
-      s7_pointer e = cadr(args); /* (@ ((x 1)) (set! (setter 'x (curlet)) (^ (s v e) ...))) */
+      s7_pointer e = cadr(args); /* (@ ((x 1)) (=> (setter 'x (curlet)) (^ (s v e) ...))) */
       func = caddr(args);
       if ((e == sc->rootlet) || (e == sc->nil))
 	slot = global_slot(sym);
       else
 	{
 	  if (!is_let(e))
-	    wrong_type_error_nr(sc, wrap_string(sc, "set! setter", 11), 2, e, sc->type_names[T_LET]);
+	    wrong_type_error_nr(sc, wrap_string(sc, "=> setter", 11), 2, e, sc->type_names[T_LET]);
 	  slot = lookup_slot_from(sym, e);
 	}}
   else
     {
-      slot = lookup_slot_from(sym, sc->curlet); /* (set! (setter 'x) (^ (s v) ...)) */
+      slot = lookup_slot_from(sym, sc->curlet); /* (=> (setter 'x) (^ (s v) ...)) */
       func = cadr(args);
     }
   if (!is_slot(slot))
@@ -46813,10 +46813,10 @@ static s7_pointer symbol_set_setter(s7_scheme *sc, s7_pointer sym, s7_pointer ar
     {
       if (sym == sc->setter_symbol)
 	immutable_object_error_nr(sc, set_elist_2(sc, wrap_string(sc, "can't set (setter 'setter) to ~S", 32), func));
-      if (is_syntax_or_qq(slot_value(slot)))         /* (set! (setter 'begin) ...), qq is syntax sez r7rs */
+      if (is_syntax_or_qq(slot_value(slot)))         /* (=> (setter 'begin) ...), qq is syntax sez r7rs */
 	immutable_object_error_nr(sc, set_elist_3(sc, wrap_string(sc, "can't set (setter '~S) to ~S", 28), sym, func));
       if (!is_any_procedure(func))   /* disallow continuation/goto here */
-	wrong_type_error_nr(sc, wrap_string(sc, "set! setter", 11), 3, func, wrap_string(sc, "a function or $f", 16));
+	wrong_type_error_nr(sc, wrap_string(sc, "=> setter", 11), 3, func, wrap_string(sc, "a function or $f", 16));
       if ((!is_c_function(func)) || (!c_function_has_bool_setter(func)))
 	{
 	  if (s7_is_aritable(sc, func, 3))
@@ -46840,13 +46840,13 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
   if (is_symbol(p))
     return(symbol_set_setter(sc, p, args));
   if (p == sc->s7_starlet)
-    wrong_type_error_nr(sc, wrap_string(sc, "set! setter", 11), 1, p, wrap_string(sc, "something other than *s7*", 25));
+    wrong_type_error_nr(sc, wrap_string(sc, "=> setter", 11), 1, p, wrap_string(sc, "something other than *s7*", 25));
 
   setter = cadr(args);
   if (setter != sc->F)
     {
       if (!is_any_procedure(setter))
-	wrong_type_error_nr(sc, wrap_string(sc, "set! setter", 11), 2, setter, wrap_string(sc, "a procedure or $f", 17));
+	wrong_type_error_nr(sc, wrap_string(sc, "=> setter", 11), 2, setter, wrap_string(sc, "a procedure or $f", 17));
       if (arity_to_int(sc, setter) < 1)          /* we need at least an arg for the set! value */
 	error_nr(sc, sc->wrong_type_arg_symbol,
 		 set_elist_2(sc, wrap_string(sc, "setter function, ~A, should take at least one argument", 54), setter));
@@ -46877,8 +46877,8 @@ static s7_pointer g_set_setter(s7_scheme *sc, s7_pointer args)
 	add_setter(sc, p, setter);
       break;
 
-    default:  /* (set! (setter 4) ...) or p==continuation etc */
-      wrong_type_error_nr(sc, wrap_string(sc, "set! setter", 11), 1, p, wrap_string(sc, "a symbol, a procedure, or a macro", 33));
+    default:  /* (=> (setter 4) ...) or p==continuation etc */
+      wrong_type_error_nr(sc, wrap_string(sc, "=> setter", 11), 1, p, wrap_string(sc, "a symbol, a procedure, or a macro", 33));
     }
   return(setter);
 }
@@ -46916,7 +46916,7 @@ s7_pointer s7_set_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
   return(g_set_setter(sc, set_plist_2(sc, p, setter)));
 }
 
-/* (@ () (< xxx 23) (< (hix) (set! xxx 24)) (hix) (set! (setter 'xxx) (^ (sym val) (format *stderr* "val: ~A~%" val) val)) (hix))
+/* (@ () (< xxx 23) (< (hix) (=> xxx 24)) (hix) (=> (setter 'xxx) (^ (sym val) (format *stderr* "val: ~A~%" val) val)) (hix))
  *    so set setter before use!
  */
 
@@ -49299,7 +49299,7 @@ s7_pointer s7_reverse(s7_scheme *sc, s7_pointer a) /* just pairs */
 }
 
 /* s7_reverse sometimes tacks extra nodes on the end of a reversed circular list (it detects the cycle too late)
- *  (@ ((lst (list 0))) (set! (cdr lst) lst) (reverse lst)) -> ($1=(0 . $1$) 0 0 0)
+ *  (@ ((lst (list 0))) (=> (cdr lst) lst) (reverse lst)) -> ($1=(0 . $1$) 0 0 0)
  */
 
 static s7_pointer string_reverse(s7_scheme *sc, s7_pointer p)
@@ -49606,7 +49606,7 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	return(np);
       }
       /* (reverse! p) is supposed to change p directly and lisp programmers expect reverse! to be fast
-       * so in a sense this is different from the other cases: it assumes (set! p (reverse! p))
+       * so in a sense this is different from the other cases: it assumes (=> p (reverse! p))
        * To make (reverse! p) direct:
        *    for (l = p, r = cdr(p); is_pair(r); l = r, r = cdr(r)) opt1(r) = l;
        *    if (!is_null(r)) sole_arg_wrong_type_error_nr(sc, sc->reverseb_symbol, p, a_proper_list_string);
@@ -50299,7 +50299,7 @@ static s7_pointer iterator_to_let(s7_scheme *sc, s7_pointer obj)
 static s7_pointer let_to_let(s7_scheme *sc, s7_pointer obj)
 {
   /* how to handle setters?
-   *   (display (@ ((e (@ ((i 0)) (set! (setter 'i) integer?) (curlet)))) (object->let e))):
+   *   (display (@ ((e (@ ((i 0)) (=> (setter 'i) integer?) (curlet)))) (object->let e))):
    *   "(inlet 'value (inlet 'i 0) 'type let? 'length 1 'open $f 'outlet () 'immutable? $f)"
    */
   s7_pointer let;
@@ -51328,7 +51328,7 @@ s7_pointer s7_call_with_catch(s7_scheme *sc, s7_pointer tag, s7_pointer body, s7
 
 static void op_c_catch(s7_scheme *sc)
 {
-  /* (catch $t (^ () (set! ("hi") $\a)) (^ args args))
+  /* (catch $t (^ () (=> ("hi") $\a)) (^ args args))
    *    code is (catch $t (^ () ....) (^ args ....))
    */
   s7_pointer p, f = cadr(sc->code), args = cddr(sc->code), tag;
@@ -52006,7 +52006,7 @@ static noreturn void error_nr(s7_scheme *sc, s7_pointer type, s7_pointer info)
       (hook_has_functions(sc->error_hook)))
     {
       s7_pointer error_hook_funcs = s7_hook_functions(sc, sc->error_hook);
-      /* (set! (hook-functions *error-hook*) (list (^ (h) (format *stderr* "got error ~A~%" (h 'args))))) */
+      /* (=> (hook-functions *error-hook*) (list (^ (h) (format *stderr* "got error ~A~%" (h 'args))))) */
       let_set(sc, closure_let(sc->error_hook), sc->body_symbol, sc->nil);
       let_set(sc, closure_let(sc->let_temp_hook), sc->body_symbol, error_hook_funcs);
       /* if the *error-hook* functions trigger an error, we had better not have hook_functions(*error-hook*) still set! */
@@ -56372,7 +56372,7 @@ static s7_pointer fx_safe_closure_aa_a(s7_scheme *sc, s7_pointer code)
   return(p);
 }
 
-static inline s7_pointer fx_cond_na_na(s7_scheme *sc, s7_pointer code)  /* all tests are fxable, results are all fx, no =>, no missing results */
+static inline s7_pointer fx_cond_na_na(s7_scheme *sc, s7_pointer code)  /* all tests are fxable, results are all fx, no =%, no missing results */
 {
   for (s7_pointer p = cdr(code); is_pair(p); p = cdr(p))
     if (is_true(sc, fx_call(sc, car(p))))
@@ -58535,7 +58535,7 @@ static s7_int opt_i_ii_fc(opt_info *o)     {return(o->v[3].i_ii_f(o->v[11].fi(o-
 static s7_int opt_i_ii_fc_add(opt_info *o) {return(o->v[11].fi(o->v[10].o1) + o->v[2].i);}
 static s7_int opt_i_ii_fc_mul(opt_info *o) {return(o->v[11].fi(o->v[10].o1) * o->v[2].i);}
 /* returning s7_int so overflow->real is not doable here, so
- *   (< (func) (do ((x 0) (i 0 (+ i 1))) ((= i 1) x) (set! x (* (lognot 4294967297) 4294967297)))) (func) (func)
+ *   (< (func) (do ((x 0) (i 0 (+ i 1))) ((= i 1) x) (=> x (* (lognot 4294967297) 4294967297)))) (func) (func)
  *   will return -12884901890 rather than -18446744086594454000.0, 4294967297 > sqrt(fixmost)
  *   This affects all the opt arithmetical functions.  Unfortunately the gmp version also gets -12884901890!
  *   We need to make sure none of these are available in the gmp version.
@@ -59210,7 +59210,7 @@ static s7_int opt_set_i_i_f(opt_info *o)
   return(x);
 }
 
-static s7_int opt_set_i_i_fm(opt_info *o) /* called in increment: (set! sum (+ sum (...))) where are all ints */
+static s7_int opt_set_i_i_fm(opt_info *o) /* called in increment: (=> sum (+ sum (...))) where are all ints */
 {
   s7_int x = o->v[3].fi(o->v[2].o1);
   integer(slot_value(o->v[1].p)) = x;
@@ -59248,7 +59248,7 @@ static bool i_syntax_ok(s7_scheme *sc, s7_pointer car_x, int32_t len)
       (len == 3))
     {
       opt_info *opc = alloc_opt_info(sc);
-      if (is_symbol(cadr(car_x)))  /* (set! i 3) */
+      if (is_symbol(cadr(car_x)))  /* (=> i 3) */
 	{
 	  s7_pointer settee;
 	  if (is_immutable(cadr(car_x)))
@@ -64275,7 +64275,7 @@ static bool check_type_uncertainty(s7_scheme *sc, s7_pointer target, s7_pointer 
   /* if we're optimizing do, sc->code is (sometimes) ((vars...) (end...) car_x) where car_x is the do body, but it can also be for-each etc */
 
   /* maybe the type uncertainty is not a problem */
-  if ((is_pair(code)) &&      /* t101-aux-14: (vector-set! !v! 0 (do ((x (list 1 2 3) (cdr x)) (j -1)) ((null? x) j) (set! j (car x)))) */
+  if ((is_pair(code)) &&      /* t101-aux-14: (vector-set! !v! 0 (do ((x (list 1 2 3) (cdr x)) (j -1)) ((null? x) j) (=> j (car x)))) */
       (is_pair(car(code))) &&
       (is_pair(cdr(code))) && /* weird that code sometimes has nothing to do with car_x -- tree_memq below for reality check */
       (is_pair(cadr(code))))
@@ -64299,7 +64299,7 @@ static bool check_type_uncertainty(s7_scheme *sc, s7_pointer target, s7_pointer 
 	  else counts = tree_count(sc, target, code, 0);
 	}
       else counts = 2;
-      /* can be from lambda: (^ (n)...): ((n) (set! sum (+ sum n))) etc */
+      /* can be from lambda: (^ (n)...): ((n) (=> sum (+ sum n))) etc */
       if (counts <= 2)
 	{
 	  set_has_low_count(code);
@@ -66259,7 +66259,7 @@ static bool opt_cell_do(s7_scheme *sc, s7_pointer car_x, int32_t len)
       opt_info *inits;
 
       opc->v[0].fp = ((step_len == 1) && (body_len == 1) && (rtn_len == 1)) ? opt_do_step_1 : opt_do_any;
-      /* (do ((sum 0.0) (k 0 (+ k 1))) ((= k size) (set! (C i j) sum)) (set! sum (+ sum (* (A i k) (B k j))))) tmat */
+      /* (do ((sum 0.0) (k 0 (+ k 1))) ((= k size) (=> (C i j) sum)) (=> sum (+ sum (* (A i k) (B k j))))) tmat */
 
       do_any_test(opc) = sc->opts[end_test_pc];
 
@@ -68442,9 +68442,9 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
       /* look for errors here rather than glomming up the set! and let code */
     case OP_SET_SAFE:                         /* symbol is sc->code after pop */
     case OP_SET1:
-    case OP_SET_FROM_LET_TEMP:                /* (set! var (values 1 2 3)) */
+    case OP_SET_FROM_LET_TEMP:                /* (=> var (values 1 2 3)) */
     case OP_SET_FROM_SETTER:
-      syntax_error_with_caller_nr(sc, "set!: can't set ~A to ~S", 24, stack_code(sc->stack, top), set_ulist_1(sc, sc->values_symbol, args));
+      syntax_error_with_caller_nr(sc, "=>: can't set ~A to ~S", 24, stack_code(sc->stack, top), set_ulist_1(sc, sc->values_symbol, args));
 
     case OP_SET_opSAq_P_1: case OP_SET_opSAAq_P_1:
       syntax_error_nr(sc, "too many arguments to set! ~S", 29, set_ulist_1(sc, sc->values_symbol, args));
@@ -68588,7 +68588,7 @@ s7_pointer s7_values(s7_scheme *sc, s7_pointer args)
   #define H_values "(values obj ...) splices its arguments into whatever list holds it (its 'continuation')"
   #define Q_values s7_make_circular_signature(sc, 1, 2, sc->values_symbol, sc->T)
 
-  if (is_null(args))         /* ((^ () (@ ((x 1)) (set! x (boolean? (values)))))) */
+  if (is_null(args))         /* ((^ () (@ ((x 1)) (=> x (boolean? (values)))))) */
     return(sc->no_value);
   if (is_null(cdr(args)))
     return(car(args));
@@ -68961,9 +68961,9 @@ static void init_choosers(s7_scheme *sc)
   /* = */
   f = set_function_chooser(sc->num_eq_symbol, num_eq_chooser);
   sc->num_eq_class = c_function_class(f);
-  sc->num_eq_2 = make_function_with_class(sc, f, "=", g_num_eq_2, 2, 0, false);
-  sc->num_eq_xi = make_function_with_class(sc, f, "=", g_num_eq_xi, 2, 0, false);
-  sc->num_eq_ix = make_function_with_class(sc, f, "=", g_num_eq_ix, 2, 0, false);
+  sc->num_eq_2 = make_function_with_class(sc, f, "==", g_num_eq_2, 2, 0, false);    // [c4augustus]
+  sc->num_eq_xi = make_function_with_class(sc, f, "==", g_num_eq_xi, 2, 0, false);  // [c4augustus]
+  sc->num_eq_ix = make_function_with_class(sc, f, "==", g_num_eq_ix, 2, 0, false);  // [c4augustus]
 
   /* min */
   f = set_function_chooser(sc->min_symbol, min_chooser);
@@ -69378,7 +69378,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	      (is_procedure(sc->unbound_variable_hook)) &&
 	      (hook_has_functions(sc->unbound_variable_hook)))
 	    {
-	      /* (@ () (set! (hook-functions *unbound-variable-hook*) (list (^ (v) _asdf_))) _asdf_) */
+	      /* (@ () (=> (hook-functions *unbound-variable-hook*) (list (^ (v) _asdf_))) _asdf_) */
 	      s7_pointer old_hook = sc->unbound_variable_hook;
 	      bool old_history_enabled = s7_set_history_enabled(sc, false);
 	      gc_protect_via_stack(sc, old_hook);
@@ -72650,7 +72650,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	  }
 
 	case OP_SET:
-	  /* if we set func, we have to abandon the tail call scan: (@ () (< (hi a) (@ ((v (vector 1 2 3))) (set! hi v) (hi a))) (hi 1)) */
+	  /* if we set func, we have to abandon the tail call scan: (@ () (< (hi a) (@ ((v (vector 1 2 3))) (=> hi v) (hi a))) (hi 1)) */
 	  if (!is_pair(cddr(x))) return(UNSAFE_BODY);
 	  if (cadr(x) == func) return(UNSAFE_BODY);
 
@@ -74394,13 +74394,13 @@ static s7_pointer check_case(s7_scheme *sc)
       if ((is_pair(cdr(y))) && (is_undefined_feed_to(sc, cadr(y))))
 	{
 	  has_feed_to = true;
-	  if (!is_pair(cddr(y)))                                  /* (case 1 (else =>)) */
+	  if (!is_pair(cddr(y)))                                  /* (case 1 (else =%)) */
 	    error_nr(sc, sc->syntax_error_symbol,
-		     set_elist_3(sc, wrap_string(sc, "case: '=>' target missing: ~S in ~A", 35),
+		     set_elist_3(sc, wrap_string(sc, "case: '=%' target missing: ~S in ~A", 35),
 				 y, object_to_truncated_string(sc, form, 80)));
-	  if (is_pair(cdddr(y)))                                  /* (case 1 (else => + - *)) */
+	  if (is_pair(cdddr(y)))                                  /* (case 1 (else =% + - *)) */
 	    error_nr(sc, sc->syntax_error_symbol,
-		     set_elist_3(sc, wrap_string(sc, "case: '=>' has too many targets: ~S in ~A", 41),
+		     set_elist_3(sc, wrap_string(sc, "case: '=%' has too many targets: ~S in ~A", 41),
 				 y, object_to_truncated_string(sc, form, 80)));
 	}}
   if (is_not_null(x))                                             /* (case x ((1 2)) . 1) */
@@ -74429,7 +74429,7 @@ static s7_pointer check_case(s7_scheme *sc)
   if (key_type == T_INTEGER)
     set_has_integer_keys(form);
 
-  /* X_Y_Z: X (selector): S=symbol, A=fxable, P=any, Y: E(keys simple) G(any keys) I(integer keys) , Z: S: no =>, bodies simple, keys single G: all else, -- ?? */
+  /* X_Y_Z: X (selector): S=symbol, A=fxable, P=any, Y: E(keys simple) G(any keys) I(integer keys) , Z: S: no =%, bodies simple, keys single G: all else, -- ?? */
   pair_set_syntax_op(form, OP_CASE_P_G_G); /* fallback on this */
   if ((has_feed_to) ||
       (!bodies_simple) ||  /* x_x_g g=general keys or bodies */
@@ -74908,7 +74908,7 @@ static s7_pointer check_let(s7_scheme *sc) /* called only from op_let */
     {
       if (!is_list(cadr(code)))             /* (@ hi $t) */
 	syntax_error_nr(sc, "let variable list is messed up: ~A", 34, form);
-      if (!is_pair(cddr(code)))             /* (@ hi () . =>) or (@ hi () ) */
+      if (!is_pair(cddr(code)))             /* (@ hi () . =%) or (@ hi () ) */
 	{
 	  if (is_null(cddr(code)))
 	    syntax_error_nr(sc, "named let has no body: ~A", 25 , form);
@@ -75289,7 +75289,7 @@ static void op_let_one_new(s7_scheme *sc)
 {
   sc->code = cdr(sc->code);
   /* check_stack_size(sc) -- needed if we're in an infinite loop -- maybe let it trigger "stack too big" instead */
-  /*   e.g. (@ ((set! let*)) (%* set! ((x 1234) (y 1/2)) (@ ((<1> (list 1 $f))) (set! (<1> 1) ...)))) */
+  /*   e.g. (@ ((=> let*)) (%* set! ((x 1234) (y 1/2)) (@ ((<1> (list 1 $f))) (=> (<1> 1) ...)))) */
   push_stack_no_args(sc, OP_LET_ONE_NEW_1, cdr(sc->code));
   sc->code = opt2_pair(sc->code);
 }
@@ -75521,7 +75521,7 @@ static bool check_let_star(s7_scheme *sc)
     {
       if (!is_list(cadr(code)))                 /* (%* hi $t) */
 	syntax_error_nr(sc, "let* variable list is messed up: ~A", 35, form);
-      if (!is_pair(cddr(code)))                 /* (%* hi () . =>) or (%* hi () ) */
+      if (!is_pair(cddr(code)))                 /* (%* hi () . =%) or (%* hi () ) */
 	{
 	  if (is_null(cddr(code)))
 	    syntax_error_nr(sc, "named let* has no body: ~A", 26, form);
@@ -76843,7 +76843,7 @@ static void op_if_unchecked(s7_scheme *sc)
 static bool op_if1(s7_scheme *sc)
 {
   sc->code = (is_true(sc, sc->value)) ? car(sc->code) : unchecked_car(cdr(sc->code));
-  /* even pre-optimization, (? $f $f) ==> $<unspecified> because unique_car(sc->nil) = sc->unspecified */
+  /* even pre-optimization, (? $f $f) ==% $<unspecified> because unique_car(sc->nil) = sc->unspecified */
   if (is_pair(sc->code))
     return(true);
   sc->value = (is_symbol(sc->code)) ? lookup_checked(sc, sc->code) : sc->code;
@@ -77834,13 +77834,13 @@ static void check_cond(s7_scheme *sc)
 	    if (is_undefined_feed_to(sc, cadr(y)))
 	      {
 		has_feed_to = true;
-		if (!is_pair(cddr(y)))                         /* (cond ($t =>)) or (cond ($t => . 1)) */
+		if (!is_pair(cddr(y)))                         /* (cond ($t =%)) or (cond ($t =% . 1)) */
 		  error_nr(sc, sc->syntax_error_symbol,
-			   set_elist_3(sc, wrap_string(sc, "cond: '=>' target missing?  ~S in ~A", 36),
+			   set_elist_3(sc, wrap_string(sc, "cond: '=%' target missing?  ~S in ~A", 36),
 				       x, object_to_truncated_string(sc, form, 80)));
-		if (is_pair(cdddr(y)))                         /* (cond (1 => + abs)) */
+		if (is_pair(cdddr(y)))                         /* (cond (1 =% + abs)) */
 		  error_nr(sc, sc->syntax_error_symbol,
-			   set_elist_3(sc, wrap_string(sc, "cond: '=>' has too many targets: ~S in ~A", 41),
+			   set_elist_3(sc, wrap_string(sc, "cond: '=%' has too many targets: ~S in ~A", 41),
 				       x, object_to_truncated_string(sc, form, 80)));
 	      }}
 	else result_single = false;
@@ -77876,7 +77876,7 @@ static void check_cond(s7_scheme *sc)
 	      s7_pointer arg = cadr(f);
 	      if ((is_pair(arg)) &&
 		  (is_null(cdr(arg))) &&
-		  (is_symbol(car(arg)))) /* (< (hi) (cond ($t => (^ (s) s)))) */
+		  (is_symbol(car(arg)))) /* (< (hi) (cond ($t =% (^ (s) s)))) */
 		{
 		  set_opt2_lambda(code, caddar(code));  /* (^ ...) above */
 		  pair_set_syntax_op(form, OP_COND_FEED);
@@ -77928,7 +77928,7 @@ static bool op_cond_unchecked(s7_scheme *sc)
   return(true);
 }
 
-static bool op_cond_simple(s7_scheme *sc)     /* no => */
+static bool op_cond_simple(s7_scheme *sc)     /* no =% */
 {
   sc->code = cdr(sc->code);
   if (has_fx(car(sc->code)))
@@ -77941,7 +77941,7 @@ static bool op_cond_simple(s7_scheme *sc)     /* no => */
   return(true);
 }
 
-static bool op_cond_simple_o(s7_scheme *sc)  /* no =>, no null or multiform consequent */
+static bool op_cond_simple_o(s7_scheme *sc)  /* no =%, no null or multiform consequent */
 {
   sc->code = cdr(sc->code);
   if (has_fx(car(sc->code)))
@@ -78088,7 +78088,7 @@ static bool op_cond1_simple_o(s7_scheme *sc)
 	}}
 }
 
-static bool op_cond_na_np(s7_scheme *sc)  /* all tests are fxable, results may be a mixture, no =>, no missing results */
+static bool op_cond_na_np(s7_scheme *sc)  /* all tests are fxable, results may be a mixture, no =%, no missing results */
 {
   for (s7_pointer p = cdr(sc->code); is_pair(p); p = cdr(p))
     if (is_true(sc, fx_call(sc, car(p))))
@@ -78124,7 +78124,7 @@ static bool op_cond_na_np_1(s7_scheme *sc)  /* continuing to handle a multi-stat
   return(true);
 }
 
-static Inline bool inline_op_cond_na_np_o(s7_scheme *sc)  /* all tests are fxable, results may be a mixture, no =>, no missing results, all result one expr */
+static Inline bool inline_op_cond_na_np_o(s7_scheme *sc)  /* all tests are fxable, results may be a mixture, no =%, no missing results, all result one expr */
 { /* called once in eval, b case cb lg rclo str */
   for (s7_pointer p = cdr(sc->code); is_pair(p); p = cdr(p))
     if (is_true(sc, fx_call(sc, car(p))))
@@ -78170,7 +78170,7 @@ static bool op_cond_na_3e(s7_scheme *sc)
 
 static bool op_cond_feed(s7_scheme *sc)
 {
-  /* (cond (expr => p)) where p is (^ (s) ...) -- see check_cond */
+  /* (cond (expr =% p)) where p is (^ (s) ...) -- see check_cond */
   sc->code = cdr(sc->code);
   if (has_fx(car(sc->code)))
     sc->value = fx_call(sc, car(sc->code));
@@ -78202,14 +78202,14 @@ static bool feed_to(s7_scheme *sc)
       clear_multiple_value(sc->args);
       if (is_symbol(cadr(sc->code)))
 	{
-	  sc->code = lookup_global(sc, cadr(sc->code));  /* car is => */
+	  sc->code = lookup_global(sc, cadr(sc->code));  /* car is =% */
 	  return(true);
 	}}
   else
     {
       if (is_symbol(cadr(sc->code)))
 	{
-	  sc->code = lookup_global(sc, cadr(sc->code));  /* car is => */
+	  sc->code = lookup_global(sc, cadr(sc->code));  /* car is =% */
 	  sc->args = (needs_copied_args(sc->code)) ? list_1(sc, sc->value) : set_plist_1(sc, sc->value);
 	  return(true);
 	}
@@ -78227,69 +78227,69 @@ static void check_set(s7_scheme *sc)
   s7_pointer form = sc->code, code = cdr(sc->code);
   if (!is_pair(code))
     {
-      if (is_null(code))                                             /* (set!) */
-	syntax_error_nr(sc, "set!: not enough arguments: ~A", 30, form);
-      syntax_error_nr(sc, "set!: stray dot? ~A", 19, form);          /* (set! . 1) */
+      if (is_null(code))                                             /* (=>) */
+	syntax_error_nr(sc, "=>: not enough arguments: ~A", 30, form);
+      syntax_error_nr(sc, "=>: stray dot? ~A", 19, form);          /* (=> . 1) */
     }
   if (!is_pair(cdr(code)))
     {
-      if (is_null(cdr(code)))                                        /* (set! var) */
-	syntax_error_nr(sc, "set!: not enough arguments: ~A", 30, form);
-      syntax_error_nr(sc, "set!: stray dot? ~A", 19, form);          /* (set! var . 1) */
+      if (is_null(cdr(code)))                                        /* (=> var) */
+	syntax_error_nr(sc, "=>: not enough arguments: ~A", 30, form);
+      syntax_error_nr(sc, "=>: stray dot? ~A", 19, form);          /* (=> var . 1) */
     }
-  if (is_not_null(cddr(code)))                                       /* (set! var 1 2) */
+  if (is_not_null(cddr(code)))                                       /* (=> var 1 2) */
     syntax_error_nr(sc, "~A: too many arguments to set!", 30, form);
 
   /* cadr (the value) has not yet been evaluated */
   if (is_pair(car(code)))
     {
       if ((is_pair(caar(code))) &&
-	  (!is_list(cdar(code))))                                   /* (set! ('(1 2) . 0) 1) */
+	  (!is_list(cdar(code))))                                   /* (=> ('(1 2) . 0) 1) */
 	syntax_error_nr(sc, "improper list of arguments to set!: ~A", 38, form);
-      if (!s7_is_proper_list(sc, car(code)))                        /* (set! ("hi" . 1) $\a) or (set! ($(1 2) . 1) 0) */
-	syntax_error_nr(sc, "set! target is an improper list: (set! ~A ...)", 46, car(code));
+      if (!s7_is_proper_list(sc, car(code)))                        /* (=> ("hi" . 1) $\a) or (=> ($(1 2) . 1) 0) */
+	syntax_error_nr(sc, "=> target is an improper list: (=> ~A ...)", 46, car(code));
     }
   else
-    if (!is_symbol(car(code)))                                      /* (set! 12345 1) */
+    if (!is_symbol(car(code)))                                      /* (=> 12345 1) */
       error_nr(sc, sc->syntax_error_symbol,
-	       set_elist_3(sc, wrap_string(sc, "set! can't change ~S, ~S", 24), car(code), form));
+	       set_elist_3(sc, wrap_string(sc, "=> can't change ~S, ~S", 24), car(code), form));
     else
-      if (is_constant_symbol(sc, car(code)))                        /* (set! pi 3) */
+      if (is_constant_symbol(sc, car(code)))                        /* (=> pi 3) */
 	error_nr(sc, sc->syntax_error_symbol,
-		 set_elist_3(sc, wrap_string(sc, (is_keyword(car(code))) ? "set!: can't change keyword's value: ~S in ~S" :
-					     "set!: can't alter constant's value: ~S in ~S", 44),
+		 set_elist_3(sc, wrap_string(sc, (is_keyword(car(code))) ? "=>: can't change keyword's value: ~S in ~S" :
+					     "=>: can't alter constant's value: ~S in ~S", 44),
 			     car(code), form));
   if (is_pair(car(code)))
     {
-      /* here we have (set! (...) ...) */
+      /* here we have (=> (...) ...) */
       s7_pointer inner = car(code), value = cadr(code);
       pair_set_syntax_op(form, OP_SET_UNCHECKED); /* if not pair car, op_set_normal below */
       if (is_symbol(car(inner)))
 	{
-	  if (is_null(cdr(inner)))                                  /* (set! (symbol) ...) */
+	  if (is_null(cdr(inner)))                                  /* (=> (symbol) ...) */
 	    {
 	      if (is_fxable(sc, value))
 		{
-		  pair_set_syntax_op(form, OP_SET_opSq_A);          /* (set! (symbol) fxable) */
+		  pair_set_syntax_op(form, OP_SET_opSq_A);          /* (=> (symbol) fxable) */
 		  fx_annotate_arg(sc, cdr(code), sc->curlet);       /* cdr(code) = value */
 		}}
 	  else
-	    if (is_null(cddr(inner))) /* we check cddr(code) above */  /* this leaves (set! (vect i j) 1) unhandled so we go to OP_SET_UNCHECKED */
+	    if (is_null(cddr(inner))) /* we check cddr(code) above */  /* this leaves (=> (vect i j) 1) unhandled so we go to OP_SET_UNCHECKED */
 	      {
 		s7_pointer index = cadr(inner);
 		if (is_fxable(sc, index))
 		  {
 		    if ((car(inner) == sc->let_ref_symbol) && (!is_pair(cddr(inner)))) /* perhaps also check for hash-table-ref */
-		      /* (@ () (< (func) (catch $t (^ () (set! (let-ref (list 1)) 1)) (^ args 'error))) (func) (func)) */
+		      /* (@ () (< (func) (catch $t (^ () (=> (let-ref (list 1)) 1)) (^ args 'error))) (func) (func)) */
 		      error_nr(sc, sc->wrong_number_of_args_symbol,
-			       set_elist_2(sc, wrap_string(sc, "set!: not enough arguments for let-ref: ~S", 42), sc->code));
+			       set_elist_2(sc, wrap_string(sc, "=>: not enough arguments for let-ref: ~S", 42), sc->code));
 		    fx_annotate_arg(sc, cdar(code), sc->curlet);    /* cdr(inner) -> index */
 		    if (is_fxable(sc, value))
 		      {
-			pair_set_syntax_op(form, OP_SET_opSAq_A);   /* (set! (symbol fxable) fxable) */
+			pair_set_syntax_op(form, OP_SET_opSAq_A);   /* (=> (symbol fxable) fxable) */
 			fx_annotate_arg(sc, cdr(code), sc->curlet); /* cdr(code) -> value */
 
-			if (car(inner) == sc->s7_starlet_symbol)    /* (set! (*s7* 'field) value) */
+			if (car(inner) == sc->s7_starlet_symbol)    /* (=> (*s7* 'field) value) */
 			  {
 			    s7_pointer sym = (is_symbol(index)) ?
 			                       ((is_keyword(index)) ? keyword_symbol(index) : index) :
@@ -78299,11 +78299,11 @@ static void check_set(s7_scheme *sc)
 				set_safe_optimize_op(form, OP_IMPLICIT_S7_STARLET_SET);
 				set_opt3_sym(form, sym);
 			      }}}
-		    else pair_set_syntax_op(form, OP_SET_opSAq_P);  /* (set! (symbol fxable) any) */
+		    else pair_set_syntax_op(form, OP_SET_opSAq_P);  /* (=> (symbol fxable) any) */
 		  }}
 	    else
 	      if ((is_null(cdddr(inner))) &&
-		  (car(inner) != sc->with_let_symbol))              /* (set! (with-let lt a) 32) needs to be handled by op_set_with_let_1 */
+		  (car(inner) != sc->with_let_symbol))              /* (=> (with-let lt a) 32) needs to be handled by op_set_with_let_1 */
 		{
 		  s7_pointer index1 = cadr(inner), index2 = caddr(inner);
 		  if ((is_fxable(sc, index1)) && (is_fxable(sc, index2)))
@@ -78311,10 +78311,10 @@ static void check_set(s7_scheme *sc)
 		      fx_annotate_args(sc, cdar(code), sc->curlet);    /* cdr(inner) -> index1 and 2 */
 		      if (is_fxable(sc, value))
 			{
-			  pair_set_syntax_op(form, OP_SET_opSAAq_A);   /* (set! (symbol fxable fxable) fxable) */
+			  pair_set_syntax_op(form, OP_SET_opSAAq_A);   /* (=> (symbol fxable fxable) fxable) */
 			  fx_annotate_arg(sc, cdr(code), sc->curlet);  /* cdr(code) -> value */
 			}
-		      else pair_set_syntax_op(form, OP_SET_opSAAq_P);  /* (set! (symbol fxable fxable) any) */
+		      else pair_set_syntax_op(form, OP_SET_opSAAq_P);  /* (=> (symbol fxable fxable) any) */
 		    }}}
       return;
     }
@@ -78393,7 +78393,7 @@ static void check_set(s7_scheme *sc)
 		if ((is_h_optimized(value)) &&
 		    (is_safe_c_op(optimize_op(value))) &&    /* else might not be opt1_cfunc? (opt1_lambda probably) */
 		    (!is_unsafe(value)) &&                   /* is_unsafe(value) can happen! */
-		    (is_not_null(cdr(value))))               /* (set! x (y)) */
+		    (is_not_null(cdr(value))))               /* (=> x (y)) */
 		  {
 		    if (is_not_null(cddr(value)))
 		      {
@@ -78510,8 +78510,8 @@ static void op_increment_sa(s7_scheme *sc)
 
 static noreturn void no_setter_error_nr(s7_scheme *sc, s7_pointer obj)
 {
-  /* sc->code here is form without set!: ((abs 1) 2) from (set! (abs 1) 2)
-   *   but in implicit case, (@ ((L (list 0))) (set! (L 0 0) 2)), code is ((0 0) 2)
+  /* sc->code here is form without set!: ((abs 1) 2) from (=> (abs 1) 2)
+   *   but in implicit case, (@ ((L (list 0))) (=> (L 0 0) 2)), code is ((0 0) 2)
    *   at entry to s7_error: ((0 0 2)??  but we print something from define-hook-function if in the repl
    *   add indices and new-value args, is unevaluated code always available?
    */
@@ -78520,10 +78520,10 @@ static noreturn void no_setter_error_nr(s7_scheme *sc, s7_pointer obj)
 
   if (type(caar(sc->code)) >= T_C_FUNCTION_STAR)
     error_nr(sc, sc->no_setter_symbol,
-	     set_elist_6(sc, wrap_string(sc, "~W (~A) does not have a setter: (set! (~W~{~^ ~S~}) ~S)", 55),
+	     set_elist_6(sc, wrap_string(sc, "~W (~A) does not have a setter: (=> (~W~{~^ ~S~}) ~S)", 55),
 			 caar(sc->code), sc->type_names[typ], caar(sc->code), cdar(sc->code), cadr(sc->code)));
   error_nr(sc, sc->no_setter_symbol,
-	   set_elist_5(sc, wrap_string(sc, "~A (~A) does not have a setter: (set! ~S ~S)", 44),
+	   set_elist_5(sc, wrap_string(sc, "~A (~A) does not have a setter: (=> ~S ~S)", 44),
 		       caar(sc->code), sc->type_names[typ],
 		       (is_pair(car(sc->code))) ? copy_proper_list(sc, car(sc->code)) : car(sc->code),
 		       (is_pair(cadr(sc->code))) ? copy_proper_list(sc, cadr(sc->code)) : cadr(sc->code)));
@@ -78534,7 +78534,7 @@ static bool pair3_cfunc(s7_scheme *sc, s7_pointer obj, s7_pointer setf, s7_point
 {
   if (!c_function_is_aritable(setf, 2))
     error_nr(sc, sc->wrong_number_of_args_symbol,
-	     set_elist_6(sc, wrap_string(sc, "set!: two arguments? (~A ~S ~S), ~A is (setter ~A)", 50), setf, arg, value, setf, obj));
+	     set_elist_6(sc, wrap_string(sc, "=>: two arguments? (~A ~S ~S), ~A is (setter ~A)", 50), setf, arg, value, setf, obj));
   if (!is_safe_procedure(setf)) /* if unsafe, we can't call c_function_call(setf) directly (need drop into eval+apply) */
     {
       sc->code = setf;
@@ -78633,7 +78633,7 @@ static bool set_pair3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_pointer 
       sc->args = (needs_copied_args(sc->code)) ? list_2(sc, arg, value) : set_plist_2(sc, arg, value);
       return(true); /* goto APPLY; not redundant -- setter type might not match getter type */
 
-    case T_C_MACRO: /* (set! (setter quasiquote) (^ args args)) (< (f) (set! (quasiquote 1) (setter 'i))) (f) (f) */
+    case T_C_MACRO: /* (=> (setter quasiquote) (^ args args)) (< (f) (=> (quasiquote 1) (setter 'i))) (f) (f) */
       if (is_c_function(c_macro_setter(obj)))
 	return(pair3_cfunc(sc, obj, c_macro_setter(obj), arg, value));
       sc->code = c_macro_setter(obj);
@@ -78655,14 +78655,14 @@ static bool set_pair3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_pointer 
   return(false);
 }
 
-static bool op_set_opsq_a(s7_scheme *sc)        /* (set! (symbol) fxable) */
+static bool op_set_opsq_a(s7_scheme *sc)        /* (=> (symbol) fxable) */
 {
   s7_pointer setf, value, code = cdr(sc->code);
   s7_pointer obj = lookup_checked(sc, caar(code));
 
   if ((is_sequence(obj)) && (!is_c_object(obj)))
     error_nr(sc, sc->wrong_number_of_args_symbol,
-	     set_elist_3(sc, wrap_string(sc, "set!: not enough arguments for ~S: ~S", 37), caar(code), sc->code));
+	     set_elist_3(sc, wrap_string(sc, "=>: not enough arguments for ~S: ~S", 37), caar(code), sc->code));
 
   setf = setter_p_pp(sc, obj, sc->curlet);
   if (is_any_macro(setf))
@@ -78676,7 +78676,7 @@ static bool op_set_opsq_a(s7_scheme *sc)        /* (set! (symbol) fxable) */
     {
       if (c_function_min_args(setf) > 1)
 	error_nr(sc, sc->wrong_number_of_args_symbol,
-		 set_elist_3(sc, wrap_string(sc, "set!: not enough arguments: (~A ~S)", 35), setf, value));
+		 set_elist_3(sc, wrap_string(sc, "=>: not enough arguments: (~A ~S)", 35), setf, value));
       sc->value = c_function_call(setf)(sc, with_list_t1(value));
       return(false);
     }
@@ -78685,7 +78685,7 @@ static bool op_set_opsq_a(s7_scheme *sc)        /* (set! (symbol) fxable) */
   return(true);
 }
 
-static bool op_set_opsaq_a(s7_scheme *sc)        /* (set! (symbol fxable) fxable) */
+static bool op_set_opsaq_a(s7_scheme *sc)        /* (=> (symbol fxable) fxable) */
 {
   s7_pointer index, value, code = cdr(sc->code);
   s7_pointer obj = lookup_checked(sc, caar(code));
@@ -78716,8 +78716,8 @@ static inline bool op_set_opsaq_p(s7_scheme *sc)
   /* ([set!] (car a) (cadr a)) */
   /* here the pair can't generate multiple values, or if it does, it's an error (caught below)
    *  splice_in_values will notice the OP_SET_opSAq_P_1 and complain.
-   * (@ () (< (hi) (@ ((str "123")) (set! (str 0) (values $\a)) str)) (hi) (hi)) is "a23"
-   * (@ ((v (make-vector '(2 3) 0))) (set! (v (values 0 1)) 23) v) -> $2D((0 23 0) (0 0 0))
+   * (@ () (< (hi) (@ ((str "123")) (=> (str 0) (values $\a)) str)) (hi) (hi)) is "a23"
+   * (@ ((v (make-vector '(2 3) 0))) (=> (v (values 0 1)) 23) v) -> $2D((0 23 0) (0 0 0))
    */
   s7_pointer obj = lookup_checked(sc, caar(code));
   if (could_be_macro_setter(obj))
@@ -78741,14 +78741,14 @@ static inline bool op_set_opsaq_p_1(s7_scheme *sc)
   if (dont_eval_args(sc->args)) /* see above */
     index = cadar(sc->code);
   else index = fx_call(sc, cdar(sc->code));
-  return(set_pair3(sc, sc->args, index, value)); /* not lookup, (set! (_!asdf!_ 3) 'a) -> unbound_variable */
+  return(set_pair3(sc, sc->args, index, value)); /* not lookup, (=> (_!asdf!_ 3) 'a) -> unbound_variable */
 }
 
 static bool pair4_cfunc(s7_scheme *sc, s7_pointer obj, s7_pointer setf, s7_pointer index1, s7_pointer index2, s7_pointer value)
 {
   if (!c_function_is_aritable(setf, 3))
     error_nr(sc, sc->wrong_number_of_args_symbol,
-	     set_elist_7(sc, wrap_string(sc, "set!: three arguments? (~A ~S ~S ~S), ~A is (setter ~A)", 55), setf, index1, index2, value, setf, obj));
+	     set_elist_7(sc, wrap_string(sc, "=>: three arguments? (~A ~S ~S ~S), ~A is (setter ~A)", 55), setf, index1, index2, value, setf, obj));
   if (!is_safe_procedure(setf))
     {
       sc->code = setf;
@@ -78806,7 +78806,7 @@ static bool set_pair4(s7_scheme *sc, s7_pointer obj, s7_pointer index1, s7_point
       sc->args = (needs_copied_args(sc->code)) ? list_3(sc, index1, index2, value) : set_plist_3(sc, index1, index2, value);
       return(true); /* goto APPLY; not redundant -- setter type might not match getter type */
 
-    case T_C_MACRO: /* (set! (setter quasiquote) (^ (a . b) a)) (@ () (< (func) (set! (quasiquote 'a 0) 3)) (func) (func)) */
+    case T_C_MACRO: /* (=> (setter quasiquote) (^ (a . b) a)) (@ () (< (func) (=> (quasiquote 'a 0) 3)) (func) (func)) */
       if (is_c_function(c_macro_setter(obj)))
 	return(pair4_cfunc(sc, obj, c_macro_setter(obj), index1, index2, value));
       sc->code = c_macro_setter(obj);
@@ -78828,7 +78828,7 @@ static bool set_pair4(s7_scheme *sc, s7_pointer obj, s7_pointer index1, s7_point
   return(false); /* goto start */
 }
 
-static bool op_set_opsaaq_a(s7_scheme *sc)        /* (set! (symbol fxable fxable) fxable) */
+static bool op_set_opsaaq_a(s7_scheme *sc)        /* (=> (symbol fxable fxable) fxable) */
 {
   s7_pointer index1, value, code = cdr(sc->code);
   s7_pointer obj = lookup_checked(sc, caar(code));
@@ -78896,7 +78896,7 @@ static bool op_set1(s7_scheme *sc)
 	    if (is_any_procedure(func))
 	      {
 		/* don't push OP_EVAL_DONE here and call eval(sc, OP_APPLY) below -- setter might hit an error */
-		/* 41297 (set! (v) val) where v=vector gets the setter, but calls vector-set! with no args */
+		/* 41297 (=> (v) val) where v=vector gets the setter, but calls vector-set! with no args */
 		push_stack_no_args(sc, OP_SET_FROM_SETTER, lx);
 		if (has_let_arg(func))
 		  sc->args = list_3(sc, sc->code, sc->value, sc->curlet);
@@ -78908,8 +78908,8 @@ static bool op_set1(s7_scheme *sc)
       symbol_increment_ctr(sc->code);                   /* see define setfib example in s7test.scm -- I'm having second thoughts about this... */
       return(true); /* continue */
     }
-  if (!has_let_set_fallback(sc->curlet))                /* (with-let (mock-hash-table 'b 2) (set! b 3)) */
-    error_nr(sc, sc->unbound_variable_symbol, set_elist_4(sc, wrap_string(sc, "~S is unbound in (set! ~S ~S)", 29), sc->code, sc->code, sc->value));
+  if (!has_let_set_fallback(sc->curlet))                /* (with-let (mock-hash-table 'b 2) (=> b 3)) */
+    error_nr(sc, sc->unbound_variable_symbol, set_elist_4(sc, wrap_string(sc, "~S is unbound in (=> ~S ~S)", 29), sc->code, sc->code, sc->value));
   sc->value = call_let_set_fallback(sc, sc->curlet, sc->code, sc->value);
   return(true);
 }
@@ -78917,21 +78917,21 @@ static bool op_set1(s7_scheme *sc)
 static bool op_set_with_let_1(s7_scheme *sc)
 {
   s7_pointer e, b, x = sc->value;
-  /* from the T_SYNTAX branch of op_set_pair: (set! (with-let e b) x) as in let-temporarily
+  /* from the T_SYNTAX branch of op_set_pair: (=> (with-let e b) x) as in let-temporarily
    *   here sc->value is the new value for the settee = x, args has the (as yet unevaluated) let and settee-expression.
    *   'b above can be a pair = generalized set in the 'e environment.
    */
-  if (!is_pair(sc->args))                /* (set! (with-let) ...) */
-    syntax_error_nr(sc, "with-let needs a let and a symbol: (set! (with-let) ~$)", 55, sc->value);
-  if (!is_pair(cdr(sc->args)))           /* (set! (with-let e) ...) */
+  if (!is_pair(sc->args))                /* (=> (with-let) ...) */
+    syntax_error_nr(sc, "with-let needs a let and a symbol: (=> (with-let) ~$)", 55, sc->value);
+  if (!is_pair(cdr(sc->args)))           /* (=> (with-let e) ...) */
     error_nr(sc, sc->syntax_error_symbol,
-	     set_elist_3(sc, wrap_string(sc, "with-let in (set! (with-let ~S) ~$) has no symbol to set?", 57), car(sc->args), sc->value));
+	     set_elist_3(sc, wrap_string(sc, "with-let in (=> (with-let ~S) ~$) has no symbol to set?", 57), car(sc->args), sc->value));
 
   e = car(sc->args);
   b = cadr(sc->args);
-  if (is_multiple_value(x))              /* (set! (with-let lt) (values 1 2)) */
+  if (is_multiple_value(x))              /* (=> (with-let lt) (values 1 2)) */
     error_nr(sc, sc->syntax_error_symbol,
-	     set_elist_4(sc, wrap_string(sc, "can't (set! (with-let ~S ~S) (values ~{~S~^ ~})): too many values", 65), e, b, x));
+	     set_elist_4(sc, wrap_string(sc, "can't (=> (with-let ~S ~S) (values ~{~S~^ ~})): too many values", 65), e, b, x));
 
   if (is_symbol(e))
     {
@@ -78946,7 +78946,7 @@ static bool op_set_with_let_1(s7_scheme *sc)
 	}
       sc->value = lookup_checked(sc, e);
       sc->code = set_plist_3(sc, sc->set_symbol, b, ((is_symbol(x)) || (is_pair(x))) ? set_plist_2(sc, sc->quote_symbol, x) : x);
-      /* (%* ((x (vector 1 2)) (lt (curlet))) (set! (with-let lt (x 0)) 32) x) here: (set! (x 0) 32) */
+      /* (%* ((x (vector 1 2)) (lt (curlet))) (=> (with-let lt (x 0)) 32) x) here: (=> (x 0) 32) */
       return(false); /* goto SET_WITH_LET */
     }
   sc->code = e;                            /* 'e above, an expression we need to evaluate */
@@ -78972,10 +78972,10 @@ static bool op_set_with_let_2(s7_scheme *sc)
       sc->value = let_set_1(sc, sc->value, b, x);
       return(true); /* continue */
     }
-  if ((is_symbol(x)) || (is_pair(x)))                        /* (set! (with-let (inlet :v (vector 1 2)) (v 0)) 'a) */
+  if ((is_symbol(x)) || (is_pair(x)))                        /* (=> (with-let (inlet :v (vector 1 2)) (v 0)) 'a) */
     sc->code = list_3(sc, sc->set_symbol, b,
 		      ((is_symbol(x)) || (is_pair(x))) ? list_2(sc, sc->quote_symbol, x) : x);
-  else sc->code = cons(sc, sc->set_symbol, sc->args);        /* (set! (with-let (curlet) (*s7* 'print-length)) 16), x=16 b=(*s7* 'print-length) */
+  else sc->code = cons(sc, sc->set_symbol, sc->args);        /* (=> (with-let (curlet) (*s7* 'print-length)) 16), x=16 b=(*s7* 'print-length) */
   return(false); /* fall into SET_WITH_LET */
 }
 
@@ -79029,7 +79029,7 @@ static void op_decrement_by_1(s7_scheme *sc)  /* ([set!] ctr (- ctr 1)) */
   s7_pointer val, y = T_Slt(lookup_slot_from(cadr(sc->code), sc->curlet));
   val = slot_value(y);
   if (is_t_integer(val))
-    sc->value = make_integer(sc, integer(val) - 1); /* increment (set!) returns the new value in sc->value */
+    sc->value = make_integer(sc, integer(val) - 1); /* increment (=>) returns the new value in sc->value */
   else
     switch (type(val))
       {
@@ -79168,7 +79168,7 @@ static goto_t set_implicit_vector(s7_scheme *sc, s7_pointer vect, s7_pointer ind
       (argnum != vector_rank(vect)))
     {
       /* this block needs to be first to handle (eg):
-       *   (@ ((v (vector (inlet 'a 0)))) (set! (v 0 'a) 32) v): $((inlet 'a 32))
+       *   (@ ((v (vector (inlet 'a 0)))) (=> (v 0 'a) 32) v): $((inlet 'a 32))
        *   sc->code here: ((v 0 'a) 32)
        */
       if (vector_rank(vect) == 1)
@@ -79198,7 +79198,7 @@ static goto_t set_implicit_vector(s7_scheme *sc, s7_pointer vect, s7_pointer ind
 	  (cdr(form) == sc->code) &&     /* form == cdr(sc->code) only on the outer call, thereafter form is the old form for better error messages */
 	  (is_fxable(sc, car(inds))) &&
 	  (is_fxable(sc, cadr(inds))) &&
-	  (is_fxable(sc, car(val))))     /* (set! (v fx fx) fx) */
+	  (is_fxable(sc, car(val))))     /* (=> (v fx fx) fx) */
 	{
 	  fx_annotate_args(sc, inds, sc->curlet);
 	  fx_annotate_arg(sc, val, sc->curlet);
@@ -79247,7 +79247,7 @@ static goto_t set_implicit_vector(s7_scheme *sc, s7_pointer vect, s7_pointer ind
 
   /* one index, rank == 1 */
   index = car(inds);
-  if ((is_symbol(car(sc->code))) && /* not (set! ($(a 0 (3)) 1) 0) -- implicit_vector_set_3 assumes symbol vect ref */
+  if ((is_symbol(car(sc->code))) && /* not (=> ($(a 0 (3)) 1) 0) -- implicit_vector_set_3 assumes symbol vect ref */
       (cdr(form) == sc->code) &&
       (is_fxable(sc, index)) &&
       (is_fxable(sc, car(val))))
@@ -79366,7 +79366,7 @@ static bool op_implicit_string_ref_a(s7_scheme *sc)
 
 static goto_t set_implicit_string(s7_scheme *sc, s7_pointer str, s7_pointer inds, s7_pointer val, s7_pointer form)
 {
-  /* here only one index makes sense and it is required, so (set! ("str") $\a), (set! ("str" . 1) $\a) and (set! ("str" 1 2) $\a) are all errors (but see below!) */
+  /* here only one index makes sense and it is required, so (=> ("str") $\a), (=> ("str" . 1) $\a) and (=> ("str" 1 2) $\a) are all errors (but see below!) */
   s7_pointer index;
 
   if (!is_pair(inds))
@@ -79427,7 +79427,7 @@ static goto_t set_implicit_pair(s7_scheme *sc, s7_pointer lst, s7_pointer inds, 
 
   if (!is_null(cdr(inds)))
     {
-      /* split (set! (a b c...) v) into (set! ((a b) c ...) v), eval (a b), return (@ ((L (list (list 1 2)))) (set! (L 0 0) 3) L) */
+      /* split (=> (a b c...) v) into (=> ((a b) c ...) v), eval (a b), return (@ ((L (list (list 1 2)))) (=> (L 0 0) 3) L) */
       if (index_val)
 	{
 	  s7_pointer obj = list_ref_1(sc, lst, index_val);
@@ -79436,7 +79436,7 @@ static goto_t set_implicit_pair(s7_scheme *sc, s7_pointer lst, s7_pointer inds, 
 		     set_elist_5(sc, wrap_string(sc, "in ~S, (~S ~$) is ~S which can't take arguments", 47), form, lst, index_val, obj));
 	  return(call_set_implicit(sc, obj, cdr(inds), val, form));
 	}
-      push_stack(sc, OP_SET2, cdr(inds), val);            /* (@ ((L (list (list 1 2 3)))) (set! (L (- (length L) 1) 2) 0) L) */
+      push_stack(sc, OP_SET2, cdr(inds), val);            /* (@ ((L (list (list 1 2 3)))) (=> (L (- (length L) 1) 2) 0) L) */
       sc->code = list_2(sc, caadr(form), car(inds));
       return(goto_unopt);
     }
@@ -79483,20 +79483,20 @@ static goto_t set_implicit_hash_table(s7_scheme *sc, s7_pointer table, s7_pointe
       if (keyval)
 	{
 	  s7_pointer obj = s7_hash_table_ref(sc, table, keyval);
-	  if (obj == sc->F)                           /* (@ ((h (hash-table 'b 1))) (set! (h 'a 'asdf) 32)) */
+	  if (obj == sc->F)                           /* (@ ((h (hash-table 'b 1))) (=> (h 'a 'asdf) 32)) */
 	    error_nr(sc, sc->syntax_error_symbol,
 		     set_elist_4(sc, wrap_string(sc, "in ~S, ~$ does not exist in ~S", 30), form, keyval, table));
 	  else
-	    if (!is_applicable(obj))                  /* (@ ((h (hash-table 'b 1))) (set! (h 'b 'asdf) 32)) */
+	    if (!is_applicable(obj))                  /* (@ ((h (hash-table 'b 1))) (=> (h 'b 'asdf) 32)) */
 	      error_nr(sc, sc->no_setter_symbol,
 		       set_elist_5(sc, wrap_string(sc, "in ~S, (~S ~$) is ~S which can't take arguments", 47), form, table, keyval, obj));
-	  /* (@ ((v (hash-table 'a (hash-table 'b 1)))) (set! (v 'a 'b 'b) 32) v) ->
-	   *    error: in (set! (v 'a 'b 'b) 32), ((hash-table 'b 1) 'b) is 1 which can't take arguments
-	   * (@ ((v (hash-table 'a (list 1 2)))) (set! (v 'a 1) 5)) -> code: (set! ((1 2) 1) 5) -> 5 (v: (hash-table 'a (1 5)))
+	  /* (@ ((v (hash-table 'a (hash-table 'b 1)))) (=> (v 'a 'b 'b) 32) v) ->
+	   *    error: in (=> (v 'a 'b 'b) 32), ((hash-table 'b 1) 'b) is 1 which can't take arguments
+	   * (@ ((v (hash-table 'a (list 1 2)))) (=> (v 'a 1) 5)) -> code: (=> ((1 2) 1) 5) -> 5 (v: (hash-table 'a (1 5)))
 	   */
 	  return(call_set_implicit(sc, obj, cdr(inds), val, form));
 	}
-      push_stack(sc, OP_SET2, cdr(inds), val); /* (@ ((L (hash-table 'b (hash-table 'a 1)))) (set! (L (symbol "b") (symbol "a")) 0) L) */
+      push_stack(sc, OP_SET2, cdr(inds), val); /* (@ ((L (hash-table 'b (hash-table 'a 1)))) (=> (L (symbol "b") (symbol "a")) 0) L) */
       sc->code = list_2(sc, caadr(form), key);  /* plist unsafe */
       return(goto_unopt);
     }
@@ -79547,7 +79547,7 @@ static goto_t set_implicit_let(s7_scheme *sc, s7_pointer let, s7_pointer inds, s
       if (symval)
 	{
 	  s7_pointer obj = let_ref(sc, let, symval);
-	  if (!is_applicable(obj))              /* (@ ((h (hash-table 'b 1))) (set! (h 'b 'asdf) 32)) */
+	  if (!is_applicable(obj))              /* (@ ((h (hash-table 'b 1))) (=> (h 'b 'asdf) 32)) */
 	    error_nr(sc, sc->no_setter_symbol,
 		     set_elist_5(sc, wrap_string(sc, "in ~S, (~S ~$) is ~S which can't take arguments", 47), form, let, symval, obj));
 	  return(call_set_implicit(sc, obj, cdr(inds), val, form));
@@ -79578,7 +79578,7 @@ static goto_t set_implicit_let(s7_scheme *sc, s7_pointer let, s7_pointer inds, s
   return(goto_top_no_pop);
 }
 
-static goto_t set_implicit_function(s7_scheme *sc, s7_pointer fnc)  /* (@ ((lst (list 1 2))) (set! (list-ref lst 0) 2) lst) */
+static goto_t set_implicit_function(s7_scheme *sc, s7_pointer fnc)  /* (@ ((lst (list 1 2))) (=> (list-ref lst 0) 2) lst) */
 {
   if (!is_t_procedure(c_function_setter(fnc)))
     {
@@ -79589,7 +79589,7 @@ static goto_t set_implicit_function(s7_scheme *sc, s7_pointer fnc)  /* (@ ((lst 
       /* here multiple-values can't happen because we don't eval the new-value argument */
       return(goto_apply);
     }
-  /* here the setter can be anything, so we need to check the needs_copied_args bit. (set! ((dilambda / (@ ((x 3)) (^ (y) (+ x y))))) 3)! */
+  /* here the setter can be anything, so we need to check the needs_copied_args bit. (=> ((dilambda / (@ ((x 3)) (^ (y) (+ x y))))) 3)! */
   push_op_stack(sc, c_function_setter(fnc));
   if (is_pair(cdar(sc->code)))
     {
@@ -79613,7 +79613,7 @@ static goto_t set_implicit_closure(s7_scheme *sc, s7_pointer fnc)
     setter = setter_p_pp(sc, fnc, sc->curlet);
   if (is_t_procedure(setter))
     {
-      /* (set! (o g) ...), here fnc = o, sc->code = ((o g) ...) */
+      /* (=> (o g) ...), here fnc = o, sc->code = ((o g) ...) */
       push_op_stack(sc, setter);
       if (is_null(cdar(sc->code)))
 	{
@@ -79651,7 +79651,7 @@ static goto_t set_implicit_iterator(s7_scheme *sc, s7_pointer iter)
     setter = closure_setter(iterator_sequence(iter));
   else no_setter_error_nr(sc, iter);
 
-  if (!is_null(cdar(sc->code))) /* (set! (iter ...) val) but iter is a thunk */
+  if (!is_null(cdar(sc->code))) /* (=> (iter ...) val) but iter is a thunk */
     error_nr(sc, sc->wrong_number_of_args_symbol,
 	     set_elist_3(sc, wrap_string(sc, "~S (an iterator): too many arguments: ~S", 40), iter, sc->code));
 
@@ -79673,9 +79673,9 @@ static goto_t set_implicit_syntax(s7_scheme *sc, s7_pointer wlet)
   if (wlet != global_value(sc->with_let_symbol))
     no_setter_error_nr(sc, wlet);
 
-  /* (set! (with-let a b) x), wlet = with-let, sc->code = ((with-let a b) x)
+  /* (=> (with-let a b) x), wlet = with-let, sc->code = ((with-let a b) x)
    *   a and x are in the current let, b is in a, we need to evaluate a and x, then
-   *   call (with-let a-value (set! b x-value))
+   *   call (with-let a-value (=> b x-value))
    */
   sc->args = cdar(sc->code);
   sc->code = cadr(sc->code);
@@ -79702,15 +79702,15 @@ static goto_t call_set_implicit(s7_scheme *sc, s7_pointer obj, s7_pointer inds, 
 
     case T_C_MACRO: case T_C_FUNCTION_STAR:
     case T_C_RST_NO_REQ_FUNCTION: case T_C_FUNCTION:
-      return(set_implicit_function(sc, obj)); /* (set! (setter...) ...) also comes here */
+      return(set_implicit_function(sc, obj)); /* (=> (setter...) ...) also comes here */
 
     case T_MACRO: case T_MACRO_STAR: case T_BACRO: case T_BACRO_STAR:
     case T_CLOSURE: case T_CLOSURE_STAR:
       return(set_implicit_closure(sc, obj));
 
-    default:                    /* (set! (1 2) 3) */
+    default:                    /* (=> (1 2) 3) */
       if (is_applicable(obj))
-	no_setter_error_nr(sc, obj); /* this is reachable if obj is a goto or continuation: (set! (go 1) 2) in s7test.scm */
+	no_setter_error_nr(sc, obj); /* this is reachable if obj is a goto or continuation: (=> (go 1) 2) in s7test.scm */
       error_nr(sc, sc->no_setter_symbol,
 	       list_3(sc, wrap_string(sc, "in ~S, ~S has no setter", 23),
 		      cons_unchecked(sc, sc->set_symbol,       /* copy_tree(sc, form) also works but copies too much: we want to copy the ulists */
@@ -79720,7 +79720,7 @@ static goto_t call_set_implicit(s7_scheme *sc, s7_pointer obj, s7_pointer inds, 
   return(goto_top_no_pop);
 }
 
-static goto_t set_implicit(s7_scheme *sc) /* sc->code incoming is (set! (...) ...) */
+static goto_t set_implicit(s7_scheme *sc) /* sc->code incoming is (=> (...) ...) */
 {
   s7_pointer caar_code, obj, form = sc->code;
   sc->code = cdr(sc->code);
@@ -79740,7 +79740,7 @@ static goto_t set_implicit(s7_scheme *sc) /* sc->code incoming is (set! (...) ..
 	sc->cur_op = optimize_op(sc->code);
 	return(goto_top_no_pop);
       }
-  /* code here is the setter and the value without the "set!": ((window-width) 800), (set! (hi 0) (* 2 3)) -> ((hi 0) (* 2 3)) */
+  /* code here is the setter and the value without the "=>": ((window-width) 800), (=> (hi 0) (* 2 3)) -> ((hi 0) (* 2 3)) */
   /* for gmp case, indices need to be decoded via s7_integer, not just integer */
   return(call_set_implicit(sc, obj, cdar(sc->code), cdr(sc->code), form));
 }
@@ -79749,20 +79749,20 @@ static goto_t op_set2(s7_scheme *sc)
 {
   if (is_pair(sc->value))
     {
-      /* (@ ((L '((1 2 3)))) (set! ((L 0) 1) 32) L), (@ ((L '(((1 2 3))))) (set! ((L 0) 0 1) 32) L)
+      /* (@ ((L '((1 2 3)))) (=> ((L 0) 1) 32) L), (@ ((L '(((1 2 3))))) (=> ((L 0) 0 1) 32) L)
        * any deeper nesting was handled already by the first eval
        *   set! looks at its first argument, if it's a symbol, it sets the associated value,
        *   if it's a list, it looks at the car of that list to decide which setter to call,
        *   if it's a list of lists, it passes the embedded lists to eval, then looks at the
        *   car of the result.  This means that we can do crazy things like:
-       *   (@ ((x '(1)) (y '(2))) (set! ((? $t x y) 0) 32) x)
+       *   (@ ((x '(1)) (y '(2))) (=> ((? $t x y) 0) 32) x)
        * the other args need to be evaluated (but not the list as if it were code):
-       *   (@ ((L '((1 2 3))) (index 1)) (set! ((L 0) index) 32) L)
+       *   (@ ((L '((1 2 3))) (index 1)) (=> ((L 0) index) 32) L)
        */
-      if (!s7_is_proper_list(sc, sc->args))                              /* (set! ('(1 2) 1 . 2) 1) */
-	syntax_error_nr(sc, "set! target arguments are an improper list: ~A", 46, sc->args);
+      if (!s7_is_proper_list(sc, sc->args))                              /* (=> ('(1 2) 1 . 2) 1) */
+	syntax_error_nr(sc, "=> target arguments are an improper list: ~A", 46, sc->args);
       if (is_multiple_value(sc->value)) /* this has to be at least 2 args, sc->args and sc->code make 2 more, so... */
-	syntax_error_nr(sc, "set!: too many arguments: ~S", 28,
+	syntax_error_nr(sc, "=>: too many arguments: ~S", 28,
 			set_ulist_1(sc, sc->set_symbol, pair_append(sc, multiple_value(sc->value), pair_append(sc, sc->args, sc->code))));
       if (sc->args == sc->nil)
 	syntax_error_nr(sc, "list set!: not enough arguments: ~S", 35, sc->code);
@@ -79775,8 +79775,8 @@ static goto_t op_set2(s7_scheme *sc)
   if ((is_any_vector(sc->value)) &&
       (vector_rank(sc->value) == proper_list_length(sc->args))) /* sc->code == new value? */
     {
-      /* (@ ((L $($(1 2 3) $(4 5 6)))) (set! ((L 1) 0) 32) L)
-       * bad case when args is nil: (@ ((L $($(1 2 3) $(4 5 6)))) (set! ((L 1)) 32) L)
+      /* (@ ((L $($(1 2 3) $(4 5 6)))) (=> ((L 1) 0) 32) L)
+       * bad case when args is nil: (@ ((L $($(1 2 3) $(4 5 6)))) (=> ((L 1)) 32) L)
        */
       if (sc->args == sc->nil)
 	syntax_error_nr(sc, "vector set!: not enough arguments: ~S", 37, sc->code);
@@ -79786,7 +79786,7 @@ static goto_t op_set2(s7_scheme *sc)
       sc->code = car(sc->args);
       return(goto_eval);
     }
-  sc->code = cons_unchecked(sc, sc->set_symbol, cons(sc, set_ulist_1(sc, sc->value, sc->args), sc->code)); /* (@ ((x 32)) (set! ((curlet) 'x) 3) x) */
+  sc->code = cons_unchecked(sc, sc->set_symbol, cons(sc, set_ulist_1(sc, sc->value, sc->args), sc->code)); /* (@ ((x 32)) (=> ((curlet) 'x) 3) x) */
   return(set_implicit(sc));
 }
 
@@ -79904,10 +79904,10 @@ static bool do_is_safe(s7_scheme *sc, s7_pointer body, s7_pointer stepper, s7_po
 		case OP_SET:
 		  {
 		    s7_pointer settee;
-		    if (!is_pair(cdr(expr)))            /* (set!) */
+		    if (!is_pair(cdr(expr)))            /* (=>) */
 		      return(false);
 		    settee = cadr(expr);
-		    if (!is_symbol(settee))             /* (set! (...) ...) which is tricky due to setter functions/macros */
+		    if (!is_symbol(settee))             /* (=> (...) ...) which is tricky due to setter functions/macros */
 		      {
 			s7_pointer setv;
 			if ((!is_pair(settee)) || (!is_symbol(car(settee))))
@@ -79927,7 +79927,7 @@ static bool do_is_safe(s7_scheme *sc, s7_pointer body, s7_pointer stepper, s7_po
 			  {
 			    bool res;
 			    set_match_symbol(settee);
-			    res = tree_match(caaddr(sc->code));  /* (set! end ...) in some fashion */
+			    res = tree_match(caaddr(sc->code));  /* (=> end ...) in some fashion */
 			    clear_match_symbol(settee);
 			    if (res) return(false);
 			  }
@@ -81191,7 +81191,7 @@ static void op_dox_no_body(s7_scheme *sc)
     {
       s7_int incr = integer(opt2_con(sc->code));
       s7_pointer istep = make_mutable_integer(sc, integer(slot_value(slot)));
-      /* this can cause unexpected, but correct behavior: (do ((x 0) (i 0 (+ i 1))) ((= i 1) x) (set! x (memq x '(0)))) -> $f
+      /* this can cause unexpected, but correct behavior: (do ((x 0) (i 0 (+ i 1))) ((= i 1) x) (=> x (memq x '(0)))) -> $f
        *   because (eq? 0 x) here is false -- memv will return '(0).  tree-count is similar.
        */
       slot_set_value(slot, istep);
@@ -81876,7 +81876,7 @@ static /* inline */ bool op_dotimes_step_o(s7_scheme *sc) /* called once in eval
   else
     {
       slot_set_value(ctr, g_add_x1(sc, with_list_t1(now)));
-      /* (< (hi) (@ ((x 0.0) (y 1.0)) (do ((i y (+ i 1))) ((= i 6)) (do ((i i (+ i 1))) ((>= i 7)) (set! x (+ x i)))) x)) */
+      /* (< (hi) (@ ((x 0.0) (y 1.0)) (do ((i y (+ i 1))) ((= i 6)) (do ((i i (+ i 1))) ((>= i 7)) (=> x (+ x i)))) x)) */
       set_car(sc->t2_1, slot_value(ctr));
       set_car(sc->t2_2, end);
       end = cadr(code);
@@ -82430,9 +82430,9 @@ static goto_t op_safe_dotimes(s7_scheme *sc)
 static goto_t op_safe_do(s7_scheme *sc)
 {
   /* body is safe, step = +1, end is = or >=, but stepper and end might be set (or at least indirectly exported) in the body:
-   *    (@ ((lst ())) (do ((i 0 (+ i 1))) ((= i 10)) (@ ((j (min i 100))) (set! lst (cons j lst)))) lst)
+   *    (@ ((lst ())) (do ((i 0 (+ i 1))) ((= i 10)) (@ ((j (min i 100))) (=> lst (cons j lst)))) lst)
    *  however, we're very restrictive about this in check_do and do_is_safe; even this is considered trouble:
-   *    (@ ((x 0)) (do ((i i (+ i 1))) ((= i 7)) (set! x (+ x i))) x)
+   *    (@ ((x 0)) (do ((i i (+ i 1))) ((= i 7)) (=> x (+ x i))) x)
    * but end might not be an integer -- need to catch this earlier.
    */
   s7_pointer end, init_val, end_val, code, form = sc->code;
@@ -82450,7 +82450,7 @@ static goto_t op_safe_do(s7_scheme *sc)
       return(goto_do_unchecked);
     }
 
-  /* (@ ((sum 0)) (< (hi) (do ((i 10 (+ i 1))) ((= i 10) i) (set! sum (+ sum i)))) (hi)) */
+  /* (@ ((sum 0)) (< (hi) (do ((i 10 (+ i 1))) ((= i 10) i) (=> sum (+ sum i)))) (hi)) */
   sc->curlet = make_let(sc, sc->curlet);
   let_set_dox_slot1(sc->curlet, add_slot_checked(sc, sc->curlet, caaar(code), init_val)); /* define the step var -- might be needed in the end clauses */
 
@@ -82515,7 +82515,7 @@ static goto_t op_safe_do(s7_scheme *sc)
   sc->code = cddr(code);
   set_unsafe_do(sc->code);
   set_opt2_pair(code, sc->code);
-  push_stack_no_args(sc, OP_SAFE_DO_STEP, code);  /* (do ((i 0 (+ i 1))) ((= i 2)) (set! (str i) $\a)) */
+  push_stack_no_args(sc, OP_SAFE_DO_STEP, code);  /* (do ((i 0 (+ i 1))) ((= i 2)) (=> (str i) $\a)) */
   return(goto_begin);
 }
 
@@ -82523,7 +82523,7 @@ static goto_t op_dotimes_p(s7_scheme *sc)
 {
   s7_pointer code = cdr(sc->code), end_val, slot, old_e;
   s7_pointer end = opt1_any(code); /* caddr(opt2_pair(code)) */
-  /* (do ... (set! args ...)) -- one line, syntactic */
+  /* (do ... (=> args ...)) -- one line, syntactic */
 
   s7_pointer init_val = fx_call(sc, cdaar(code));
   sc->value = init_val;
@@ -82653,7 +82653,7 @@ static void op_do_unchecked(s7_scheme *sc)
 
 static bool do_unchecked(s7_scheme *sc)
 {
-  if (is_null(car(sc->code)))                     /* (do () ...) -- (@ ((i 0)) (do () ((= i 1)) (set! i 1))) */
+  if (is_null(car(sc->code)))                     /* (do () ...) -- (@ ((i 0)) (do () ((= i 1)) (=> i 1))) */
     {
       sc->curlet = make_let(sc, sc->curlet);
       sc->args = cons_unchecked(sc, sc->nil, cadr(sc->code));
@@ -82709,7 +82709,7 @@ static goto_t op_do_end_true(s7_scheme *sc)
       /* similarly, if the result is a multiple value: (< (f) (+ 1 (do ((i 2 (+ i 1))) ((= i 3) (values i (+ i 1)))))) -> 8 */
       return(goto_start);
     }
-  /* might be => here as in cond and case */
+  /* might be =% here as in cond and case */
   if (is_null(cdr(sc->code)))
     {
       if (has_fx(sc->code))
@@ -83670,7 +83670,7 @@ static bool op_define1(s7_scheme *sc)
 
       if ((sc->safety > 0) &&          /* (define-constant x 3) (< x 3)... */
 	  (sc->cur_op == OP_DEFINE))
-	s7_warn(sc, 256, "(< %s %s), but %s is a constant\n", display(sc->code), display(sc->value), display(sc->code));
+	s7_warn(sc, 256, "(= %s %s), but %s is a constant\n", display(sc->code), display(sc->value), display(sc->code));
     }
   else x = lookup_slot_from(sc->code, sc->curlet);
   if ((is_slot(x)) && (slot_has_setter(x)))
@@ -84005,7 +84005,7 @@ static void op_closure_ap(s7_scheme *sc)
 {
   s7_pointer code = sc->code;
   sc->args = fx_call(sc, cdr(code));
-  /* (hook-push (undo-hook ind 0) (^ (hook) (set! u0 $t))) -> $<unused>
+  /* (hook-push (undo-hook ind 0) (^ (hook) (=> u0 $t))) -> $<unused>
    *    g_undo_hook calls s7_eval_c_string so it obviously should be declared unsafe!
    */
   push_stack(sc, OP_CLOSURE_AP_1, opt1_lambda(sc->code), sc->args);
@@ -88789,7 +88789,7 @@ static s7_pointer unknown_string_constant(s7_scheme *sc, int32_t c)
 
 static s7_pointer read_string_constant(s7_scheme *sc, s7_pointer pt)
 {
-  /* sc->F => error, no check needed here for bad input port and so on */
+  /* sc->F =% error, no check needed here for bad input port and so on */
   s7_int i = 0;
 
   if (is_string_port(pt))
@@ -88925,7 +88925,7 @@ static /* inline */ bool read_sharp_const(s7_scheme *sc) /* tread but inline mak
   sc->value = port_read_sharp(current_input_port(sc))(sc, current_input_port(sc));
   if (sc->value == sc->no_value)
     {
-      /* (set! *$readers* (cons (cons $\; (^ (s) (read) (values))) *$readers*))
+      /* (=> *$readers* (cons (cons $\; (^ (s) (read) (values))) *$readers*))
        * (+ 1 $;(* 2 3) 4)
        * so we need to get the next token, act on it without any assumptions about read list
        */
@@ -91092,7 +91092,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  sc->code = cdr(sc->code);
 	  /* sc->value is the func (but can be anything if the code is messed up: ($\a 3))
 	   *   we don't have to delay lookup of the func because arg evaluation order is not specified, so
-	   *     (@ ((func +)) (func (@ () (set! func -) 3) 2))
+	   *     (@ ((func +)) (func (@ () (=> func -) 3) 2))
 	   *   can return 5.
 	   */
 	  push_op_stack(sc, sc->value);
@@ -92458,13 +92458,13 @@ static s7_pointer g_is_op_stack(s7_scheme *sc, s7_pointer args)
 static noreturn void s7_starlet_wrong_type_error_nr(s7_scheme *sc, s7_pointer caller, s7_pointer arg, s7_pointer typ)
 {
   error_nr(sc, sc->wrong_type_arg_symbol,
-	   set_elist_5(sc, wrap_string(sc, "(set! (*s7* '~A) ~S): new value is ~A but should be ~A", 54),
+	   set_elist_5(sc, wrap_string(sc, "(=> (*s7* '~A) ~S): new value is ~A but should be ~A", 54),
 		       caller, arg, object_type_name(sc, arg), typ));
 }
 
 static noreturn void sl_stacktrace_wrong_type_error_nr(s7_scheme *sc, s7_pointer caller, s7_int num, s7_pointer arg, s7_pointer typ, s7_pointer val)
 {
-  set_elist_7(sc, wrap_string(sc, "(set! (*s7* '~A) '~S): the ~:D list element ~S is ~A but should be ~A", 69),
+  set_elist_7(sc, wrap_string(sc, "(=> (*s7* '~A) '~S): the ~:D list element ~S is ~A but should be ~A", 69),
 	      caller, val, wrap_integer(sc, num), arg, object_type_name(sc, arg), typ);
   error_nr(sc, sc->wrong_type_arg_symbol, sc->elist_7);
 }
@@ -92472,7 +92472,7 @@ static noreturn void sl_stacktrace_wrong_type_error_nr(s7_scheme *sc, s7_pointer
 static noreturn void s7_starlet_out_of_range_error_nr(s7_scheme *sc, s7_pointer caller, s7_pointer arg, s7_pointer descr)
 {
   error_nr(sc, sc->out_of_range_symbol,
-	   set_elist_4(sc, wrap_string(sc, "(set! (*s7* '~A) ~S): new value is out of range (~A)", 52), caller, arg, descr));
+	   set_elist_4(sc, wrap_string(sc, "(=> (*s7* '~A) ~S): new value is out of range (~A)", 52), caller, arg, descr));
 }
 
 static s7_int s7_starlet_length(void) {return(SL_NUM_FIELDS - 1);}
@@ -93066,8 +93066,8 @@ static s7_pointer set_bignum_precision(s7_scheme *sc, int32_t precision)
 {
   mp_prec_t bits = (mp_prec_t)precision;
   s7_pointer bpi;
-  if (precision <= 1)                   /* (set! (*s7* 'bignum-precision) 1) causes mpfr to segfault! (also 0 and -1) */
-    sole_arg_out_of_range_error_nr(sc, wrap_string(sc, "set! (*s7* 'bignum-precision)", 29), wrap_integer(sc, precision), wrap_string(sc, "has to be greater than 1", 24));
+  if (precision <= 1)                   /* (=> (*s7* 'bignum-precision) 1) causes mpfr to segfault! (also 0 and -1) */
+    sole_arg_out_of_range_error_nr(sc, wrap_string(sc, "=> (*s7* 'bignum-precision)", 29), wrap_integer(sc, precision), wrap_string(sc, "has to be greater than 1", 24));
   mpfr_set_default_prec(bits);
   mpc_set_default_precision(bits);
   bpi = big_pi(sc);
@@ -93165,7 +93165,7 @@ static s7_pointer sl_set_debug(s7_scheme *sc, s7_pointer sym, s7_pointer val)
 static s7_pointer sl_set_number_separator(s7_scheme *sc, s7_pointer sym, s7_pointer val)
 {
 #if (!WITH_NUMBER_SEPARATOR)
-  s7_warn(sc, 128, "(set! (*s7* 'number-separator) ...) but number-separator is not included in this s7");
+  s7_warn(sc, 128, "(=> (*s7* 'number-separator) ...) but number-separator is not included in this s7");
 #endif
   if (!is_character(val))
     s7_starlet_wrong_type_error_nr(sc, sym, val, sc->type_names[T_CHARACTER]);
@@ -93259,7 +93259,7 @@ static s7_pointer s7_starlet_set_1(s7_scheme *sc, s7_pointer sym, s7_pointer val
 
     case SL_FILE_NAMES: case SL_FILENAMES: sl_unsettable_error_nr(sc, sym);
 
-    case SL_FLOAT_FORMAT_PRECISION: /* float-format-precision should not be huge => hangs in snprintf -- what's a reasonable limit here? */
+    case SL_FLOAT_FORMAT_PRECISION: /* float-format-precision should not be huge =% hangs in snprintf -- what's a reasonable limit here? */
       iv = s7_integer_clamped_if_gmp(sc, sl_integer_geq_0(sc, sym, val));
       sc->float_format_precision = (iv < MAX_FLOAT_FORMAT_PRECISION) ? iv : MAX_FLOAT_FORMAT_PRECISION;
       return(val);
@@ -93294,11 +93294,11 @@ static s7_pointer s7_starlet_set_1(s7_scheme *sc, s7_pointer sym, s7_pointer val
 	resize_heap_to(sc, iv);
       return(val);
 
-    case SL_HISTORY:               /* (set! (*s7* 'history) val) */
+    case SL_HISTORY:               /* (=> (*s7* 'history) val) */
       replace_current_code(sc, val);
       return(val);
 
-    case SL_HISTORY_ENABLED:       /* (set! (*s7* 'history-enabled) $f|$t) */
+    case SL_HISTORY_ENABLED:       /* (=> (*s7* 'history-enabled) $f|$t) */
       if (is_boolean(val))
 	return(s7_make_boolean(sc, s7_set_history_enabled(sc, s7_boolean(sc, val))));
       s7_starlet_wrong_type_error_nr(sc, sym, val, sc->type_names[T_BOOLEAN]);
@@ -93538,9 +93538,9 @@ const char *s7_decode_bt(s7_scheme *sc)
 	    in_quotes = (!in_quotes);
 	  else
 	    if ((!in_quotes) && (i < size - 8) &&
-		((bt[i] == '=') &&
-		 (((bt[i + 1] == '0') && (bt[i + 2] == 'x')) ||
-		  ((bt[i + 1] == ' ') && (bt[i + 2] == '0') && (bt[i + 3] == 'x')))))
+		((bt[i] == '=') && (bt[i + 1] == '=') &&                              // [c4augustus]
+		 (((bt[i + 2] == '0') && (bt[i + 3] == 'x')) ||                       // [c4augustus]
+		  ((bt[i + 2] == ' ') && (bt[i + 3] == '0') && (bt[i + 4] == 'x'))))) // [c4augustus]
 	      {
 		void *vp;
 		int32_t vals = sscanf((const char *)(bt + i + 1), "%p", &vp);
@@ -94478,14 +94478,14 @@ static s7_pointer symbol_set_1(s7_scheme *sc, s7_pointer sym, s7_pointer val)
 {
   s7_pointer slot = lookup_slot_from(sym, sc->curlet);
   if (!is_slot(slot))
-    error_nr(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "set!: '~S is unbound", 20), sym));
+    error_nr(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "=>: '~S is unbound", 20), sym));
   if (is_immutable_slot(slot))
     immutable_object_error_nr(sc, set_elist_3(sc, immutable_error_string, sc->symbol_symbol, sym));
   slot_set_value(slot, val);
   return(val);
 }
 
-static s7_pointer g_symbol_set(s7_scheme *sc, s7_pointer args) /* (set! (symbol <lst>) <val>) */
+static s7_pointer g_symbol_set(s7_scheme *sc, s7_pointer args) /* (=> (symbol <lst>) <val>) */
 {
   s7_int i = 0, len;
   s7_pointer lst, val;
@@ -94578,7 +94578,7 @@ if optional-false-stuff exists, it is evaluated."
   #define H_when              "(when expr ...) evaluates expr, and if it is true, evaluates each form in its body, returning the value of the last"
   #define H_unless            "(unless expr ...) evaluates expr, and if it is false, evaluates each form in its body, returning the value of the last"
   #define H_begin             "(begin ...) evaluates each form in its body, returning the value of the last one"
-  #define H_set               "(set! variable value) sets the value of variable to value."
+  #define H_set               "(=> variable value) sets the value of variable to value."
   #define H_let               "(let ((var val)...) ...) binds each variable to its initial value, then evaluates its body,\
 returning the value of the last form.  The let variables are local to it, and are not available for use until all have been initialized."
   #define H_let_star          "(%* ((var val)...) ...) binds each variable to its initial value, then evaluates its body, \
@@ -94623,17 +94623,17 @@ then returns each var to its original value."
   sc->when_symbol =              syntax(sc, "when",                    OP_WHEN,              int_two,  max_arity,  H_when);
   sc->unless_symbol =            syntax(sc, "unless",                  OP_UNLESS,            int_two,  max_arity,  H_unless);
   sc->begin_symbol =             syntax(sc, "begin",                   OP_BEGIN,             int_zero, max_arity,  H_begin);      /* (begin) is () */
-  sc->set_symbol =               syntax(sc, "set!",                    OP_SET,               int_two,  int_two,    H_set);
+  sc->set_symbol =               syntax(sc, "=>",                      OP_SET,               int_two,  int_two,    H_set);                // [c4augustus]
   sc->cond_symbol =              copy_args_syntax(sc, "cond",          OP_COND,              int_one,  max_arity,  H_cond);
   sc->and_symbol =               copy_args_syntax(sc, "and",           OP_AND,               int_zero, max_arity,  H_and);
   sc->or_symbol =                copy_args_syntax(sc, "or",            OP_OR,                int_zero, max_arity,  H_or);
   sc->case_symbol =              syntax(sc, "case",                    OP_CASE,              int_two,  max_arity,  H_case);
   sc->macroexpand_symbol =       syntax(sc, "macroexpand",             OP_MACROEXPAND,       int_one,  int_one,    H_macroexpand);
   sc->let_temporarily_symbol =   syntax(sc, "let-temporarily",         OP_LET_TEMPORARILY,   int_two,  max_arity,  H_let_temporarily);
-  sc->define_imm_symbol =        definer_syntax(sc, "~",               OP_DEFINE,            int_two,  max_arity,  H_define);             // [c4augustus]
-  sc->define_imm_star_symbol =   definer_syntax(sc, "~*",              OP_DEFINE_STAR,       int_two,  max_arity,  H_define_star);        // [c4augustus]
-  sc->define_mut_symbol =        definer_syntax(sc, "<",               OP_DEFINE,            int_two,  max_arity,  H_define);             // [c4augustus]
-  sc->define_mut_star_symbol =   definer_syntax(sc, "<*",              OP_DEFINE_STAR,       int_two,  max_arity,  H_define_star);        // [c4augustus]
+  sc->define_imm_symbol =        definer_syntax(sc, "=",               OP_DEFINE,            int_two,  max_arity,  H_define);             // [c4augustus]
+  sc->define_imm_star_symbol =   definer_syntax(sc, "=*",              OP_DEFINE_STAR,       int_two,  max_arity,  H_define_star);        // [c4augustus]
+  sc->define_mut_symbol =        definer_syntax(sc, "=<",               OP_DEFINE,            int_two,  max_arity,  H_define);            // [c4augustus]
+  sc->define_mut_star_symbol =   definer_syntax(sc, "=<*",              OP_DEFINE_STAR,       int_two,  max_arity,  H_define_star);       // [c4augustus]
   sc->define_constant_symbol =   definer_syntax(sc, "define-constant", OP_DEFINE_CONSTANT,   int_two,  max_arity,  H_define_constant);
   sc->define_macro_symbol =      definer_syntax(sc, "define-macro",    OP_DEFINE_MACRO,      int_two,  max_arity,  H_define_macro);
   sc->define_macro_star_symbol = definer_syntax(sc, "define-macro*",   OP_DEFINE_MACRO_STAR, int_two,  max_arity,  H_define_macro_star);
@@ -94648,8 +94648,8 @@ then returns each var to its original value."
   sc->do_symbol =                binder_syntax(sc, "do",               OP_DO,                int_two,  max_arity,  H_do); /* 2 because body can be null */
   sc->lambda_func_symbol =       binder_syntax(sc, "^",                OP_LAMBDA,            int_two,  max_arity,  H_lambda);             // [c4augustus]
   sc->lambda_func_star_symbol =  binder_syntax(sc, "^*",               OP_LAMBDA_STAR,       int_two,  max_arity,  H_lambda_star);        // [c4augustus]
-  sc->lambda_proc_symbol =       binder_syntax(sc, "<__",              OP_LAMBDA,            int_two,  max_arity,  H_lambda);             // [c4augustus]
-  sc->lambda_proc_star_symbol =  binder_syntax(sc, "<*__",             OP_LAMBDA_STAR,       int_two,  max_arity,  H_lambda_star);        // [c4augustus]
+  sc->lambda_proc_symbol =       binder_syntax(sc, ">",                OP_LAMBDA,            int_two,  max_arity,  H_lambda);             // [c4augustus]
+  sc->lambda_proc_star_symbol =  binder_syntax(sc, ">*",               OP_LAMBDA_STAR,       int_two,  max_arity,  H_lambda_star);        // [c4augustus]
   sc->macro_symbol =             binder_syntax(sc, "macro",            OP_MACRO,             int_two,  max_arity,  H_macro);
   sc->macro_star_symbol =        binder_syntax(sc, "macro*",           OP_MACRO_STAR,        int_two,  max_arity,  H_macro_star);
   sc->bacro_symbol =             binder_syntax(sc, "bacro",            OP_BACRO,             int_two,  max_arity,  H_bacro);
@@ -94671,7 +94671,7 @@ then returns each var to its original value."
   sc->unquote_symbol =              make_symbol(sc, "unquote", 7);
 #endif
 
-  sc->feed_to_symbol =              make_symbol(sc, "=>", 2);
+  sc->feed_to_symbol =              make_symbol(sc, "=%", 2);
   sc->body_symbol =                 make_symbol(sc, "body", 4);
   sc->read_error_symbol =           make_symbol(sc, "read-error", 10);
   sc->string_read_error_symbol =    make_symbol(sc, "string-read-error", 17);
@@ -94990,7 +94990,7 @@ static void init_rootlet(s7_scheme *sc)
   sc->quotient_symbol =              defun("quotient",		quotient,		2, 0, false); set_all_integer(sc->quotient_symbol);
   sc->remainder_symbol =             defun("remainder",	        remainder,		2, 0, false); set_all_integer(sc->remainder_symbol);
   sc->modulo_symbol =                defun("modulo",		modulo,			2, 0, false); set_all_integer(sc->modulo_symbol);
-  sc->num_eq_symbol =                defun("=",		        num_eq,			2, 0, true);
+  sc->num_eq_symbol =                defun("==",		        num_eq,			2, 0, true); // [c4augustus]
   sc->lt_symbol =                    defun("<<",		        less,			2, 0, true);
   sc->gt_symbol =                    defun(">>",		        greater,		2, 0, true);
   sc->leq_symbol =                   defun("<=",		less_or_equal,		2, 0, true);
@@ -95338,7 +95338,7 @@ static void init_rootlet(s7_scheme *sc)
 
   /* -------- *autoload* -------- this pretends to be a hash-table or environment, but it's actually a function */
   sc->autoloader_symbol = s7_define_typed_function(sc, "*autoload*", g_autoloader, 1, 0, false, H_autoloader, Q_autoloader);
-  c_function_set_setter(global_value(sc->autoloader_symbol), global_value(sc->autoload_symbol)); /* (set! (*autoload* x) y) */
+  c_function_set_setter(global_value(sc->autoloader_symbol), global_value(sc->autoload_symbol)); /* (=> (*autoload* x) y) */
 
   sc->libraries_symbol = s7_define_variable_with_documentation(sc, "*libraries*", sc->nil, "list of currently loaded libraries (libc.scm, etc)");
   s7_set_setter(sc, sc->libraries_symbol, s7_make_safe_function(sc, "$<set-*libraries*>", g_libraries_set, 2, 0, false, "*libraries* setter"));
@@ -95801,9 +95801,9 @@ s7_scheme *s7_init(void)
   sc->singletons[(uint8_t)'-'] = sc->subtract_symbol;
   sc->singletons[(uint8_t)'*'] = sc->multiply_symbol;
   sc->singletons[(uint8_t)'/'] = sc->divide_symbol;
-  //sc->singletons[(uint8_t)'<'] = sc->lt_symbol; [c4augustus]
-  //sc->singletons[(uint8_t)'>'] = sc->gt_symbol; [c4augustus]
-  sc->singletons[(uint8_t)'='] = sc->num_eq_symbol;
+  //sc->singletons[(uint8_t)'<'] = sc->lt_symbol;     // [c4augustus]
+  //sc->singletons[(uint8_t)'>'] = sc->gt_symbol;     // [c4augustus]
+  //sc->singletons[(uint8_t)'='] = sc->num_eq_symbol; // [c4augustus]
 
   init_choosers(sc);
   init_typers(sc);
@@ -95820,14 +95820,14 @@ s7_scheme *s7_init(void)
 
 #if (!WITH_PURE_S7)
   s7_define_variable(sc, "make-rectangular", global_value(sc->complex_symbol));
-  s7_eval_c_string(sc, "(< make-polar                                                                \n\
+  s7_eval_c_string(sc, "(= make-polar                                                                \n\
                           (@ ((+signature+ '(number? real? real?)))                                     \n\
                             (^ (mag ang)                                                             \n\
                               (? (and (real? mag) (real? ang))                                           \n\
                                   (complex (* mag (cos ang)) (* mag (sin ang)))                           \n\
                                   (error 'wrong-type-arg \"make-polar arguments should be real\")))))");
 
-  s7_eval_c_string(sc, "(< (call-with-values producer consumer) (apply consumer (list (producer))))");
+  s7_eval_c_string(sc, "(= (call-with-values producer consumer) (apply consumer (list (producer))))");
   /* (consumer (producer)) will work in any "normal" context.  If consumer is syntax and then subsequently not syntax, there is confusion */
 
   s7_eval_c_string(sc, "(define-macro (multiple-value-bind vars expression . body)                        \n\
@@ -95837,7 +95837,7 @@ s7_scheme *s7_init(void)
                           (letrec ((traverse (^ (tree)                                               \n\
 		                               (? (pair? tree)                                           \n\
 			                           (cons (traverse (car tree))                            \n\
-				                         (case (cdr tree) ((())) (else => traverse)))     \n\
+				                         (case (cdr tree) ((())) (else =% traverse)))     \n\
 			                           (? (memq tree '(and or not else)) tree                \n\
 			                               (and (symbol? tree) (provided? tree)))))))         \n\
                             (cons 'cond (map (^ (clause)                                             \n\
@@ -95857,13 +95857,13 @@ s7_scheme *s7_init(void)
                                     (when val                                                             \n\
                                       (return                                                             \n\
                                         (cond ((null? (cdr clause)) val)                                  \n\
-                                              ((eq? (cadr clause) '=>) ((eval (caddr clause)) val))       \n\
+                                              ((eq? (cadr clause) '=%) ((eval (caddr clause)) val))       \n\
                                               ((null? (cddr clause)) (cadr clause))                       \n\
                                               (else (apply values (map quote (cdr clause)))))))))         \n\
                                 clauses)                                                                  \n\
                               (values))))"); /* this is not redundant */  /* map above ignores trailing cdr if improper */
 
-  s7_eval_c_string(sc, "(< make-hook                                                                 \n\
+  s7_eval_c_string(sc, "(= make-hook                                                                 \n\
                           (@ ((+documentation+ \"(make-hook . pars) returns a new hook (a function) that passes the parameters to its function list.\")) \n\
                             (^ hook-args                                                             \n\
                               (@ ((body ()))                                                            \n\
@@ -95874,7 +95874,7 @@ s7_scheme *s7_init(void)
                                         result))))))))");
   /* (procedure-source (make-hook 'x 'y)): (^* (x y) (@ ((result $<unspecified>)) ... result)), see stuff.scm for commentary */
 
-  s7_eval_c_string(sc, "(< hook-functions                                                            \n\
+  s7_eval_c_string(sc, "(= hook-functions                                                            \n\
                           (@ ((+signature+ '($t procedure?))                                            \n\
                                 (+documentation+ \"(hook-functions hook) gets or sets the list of functions associated with the hook\")) \n\
                             (dilambda                                                                     \n\
@@ -95890,7 +95890,7 @@ s7_scheme *s7_init(void)
                                                    (procedure? (car p))                                   \n\
                                                    (aritable? (car p) 1)))                                \n\
                                          (null? p)))                                                      \n\
-                                    (set! ((funclet hook) 'body) lst)                                     \n\
+                                    (=> ((funclet hook) 'body) lst)                                     \n\
                                     (error 'wrong-type-arg \"hook-functions must be a list of functions, each accepting one argument: ~S\" lst))))))");
 
   /* -------- *unbound-variable-hook* -------- */
@@ -96194,7 +96194,11 @@ void s7_repl(s7_scheme *sc)
   s7_pointer e = s7_inlet(sc, set_clist_2(sc, make_symbol(sc, "init_func", 9), make_symbol(sc, "libc_s7_init", 12)));
   s7_int gc_loc = s7_gc_protect(sc, e);
   s7_pointer old_e = s7_set_curlet(sc, e);   /* e is now (curlet) so loaded names from libc will be placed there, not in (rootlet) */
+#if 1 // TODO: @@@ ENABLE USING libc_s7 in UE
   s7_pointer val = s7_load_with_environment(sc, "libc_s7.so", e);
+#else // TODO: @@@ DISABLE USING libc_s7 otherwise
+  s7_pointer val = NULL;
+#endif
   if (val)
     {
       s7_pointer libs = global_slot(sc->libraries_symbol);
@@ -96202,7 +96206,6 @@ void s7_repl(s7_scheme *sc)
       s7_define(sc, sc->nil, new_symbol(sc, "*libc*", 6, hash, hash % SYMBOL_TABLE_SIZE), e);
       slot_set_value(libs, cons(sc, cons(sc, s7_make_semipermanent_string(sc, "libc.scm"), e), slot_value(libs)));
     }
-
   s7_set_curlet(sc, old_e);       /* restore incoming (curlet) */
   s7_gc_unprotect_at(sc, gc_loc);
 
