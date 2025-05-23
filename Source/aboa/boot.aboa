@@ -1,4 +1,4 @@
-# Copyright © 2023 - 2025 Alkaline Games, LLC.
+# Copyright © 2023 - 2025 Christopher Augustus
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -7,42 +7,52 @@
 # AboaUE boot program
 
 (begin
-  (~ tracing-to-log   $f)
-  (~ tracing-to-print $f)
-  (~ tracing (or tracing-to-log tracing-to-print))
-  (< (trace a)
-        (? tracing (@ ((s (format $f "## boot.aboa: ~A" a)))
-          (? tracing-to-log   (ue-log s))
-          (? tracing-to-print (ue-print-string-primary s)))))
-  (< (trace-format-values form . vals)
-        (? tracing (trace (apply format $f form vals))))
+  (= is-tr-boot-to-log   $f)
+  (= is-tr-boot-to-print $f)
+  (= is-tr-boot (or is-tr-boot-to-log is-tr-boot-to-print))
+  (= (tr-boot a)
+        (? is-tr-boot (@ ((s (format $f "## boot.aboa: (~A" a)))
+          (? is-tr-boot-to-log   (ue-log s))
+          (? is-tr-boot-to-print (ue-print-string-primary s)))))
+  (= (tr-boot-form-vals form . vals)
+        (? is-tr-boot (tr-boot (apply format $f form vals))))
 
-  (trace "BEGIN booting AboaUE..")
+  (tr-boot "BEGIN booting AboaUE..")
 
-  (< (hook-player-input world device action durations func)
+  (= (aboaht key val) # TODO: localize
+   (@ ((ht (make-hash-table 8 eq?))) # TODO: YUCK, NEED A COMBINATOR
+      (=> (ht key) val)
+      ht))
+
+  (=  aboaue-registry (aboaht 'pubsub (aboaht 'events (aboaht 'shutdown '()))))
+  (= (aboaue-registry-ref)                 aboaue-registry)
+  (= (aboaue-registry-pubsub-ref)        ((aboaue-registry-ref)        'pubsub))
+  (= (aboaue-registry-pubsub-events-ref) ((aboaue-registry-pubsub-ref) 'events))
+
+  (= (hook-player-input world device action durations func)
     ## TODO: @@@ ASSUMING 'pointing DEVICE
-    (< (trace-event event finger location)
-      ## TODO: @@@ trace-format-values apply will expand location and choke
-      ##(trace-format-values "~A finger ~A at ~{~A}" event finger location))
-      (? tracing (trace (format $f "~A finger ~A at ~A" event finger location))))
+    (= (tr-boot-event event finger location)
+      ## TODO: @@@ tr-boot-format-values apply will expand location and choke
+      ##(tr-boot-form-vals "(~A finger (~A at ={(~A}" event finger location))
+      (? is-tr-boot (tr-boot (format $f "(~A finger (~A at (~A" event finger location))))
     (ue-bind-input-touch world 'pressed
-      (<__ (finger location) (trace-event "pressed" finger location)))
+      (> (finger location) (tr-boot-event "pressed" finger location)))
     (ue-bind-input-touch world 'released
-      (<__ (finger location) (trace-event "released" finger location)))
+      (> (finger location) (tr-boot-event "released" finger location)))
     (ue-bind-input-touch world 'repeated
-      (<__ (finger location) (trace-event "repeated" finger location))))
+      (> (finger location) (tr-boot-event "repeated" finger location))))
 
-  (< (open-aboa-editor screen-pos)
+  (= (open-aboa-editor screen-pos)
     ## TODO: ### IMPLEMENT
-    (trace-format-values "(open-aboa-editor ~A)" screen-pos))
+    (tr-boot-form-vals "(open-aboa-editor (~A)" screen-pos))
 
   (ue-hook-on-world-begin-play
-    (<__ (world)
-      (trace "lambda from (ue-hook-on-world-initialized-actors)")
+    (> (world)
+      (tr-boot "lambda from (ue-hook-on-world-initialized-actors)")
       (ue-print-string world "AboaUE is active")
       (hook-player-input world 'pointing 'press '(200 0 200 0)
-        (<__ (screen-pos) (open-scheme-editor screen-pos)))))
+        (> (screen-pos) (open-scheme-editor screen-pos)))))
 
-  (trace "..END booting AboaUE")
+  (tr-boot "..END booting AboaUE")
   'OK
 )
