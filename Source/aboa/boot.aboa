@@ -19,6 +19,11 @@
 
   (tr-boot "BEGIN booting AboaUE..")
 
+  (= (call-procs-rec procs args)
+    (? (pair? procs) (begin
+          ((car procs) args)
+          (call-procs-rec (cdr procs) args))))
+
   (= (aboaht key val) # TODO: localize
    (@ ((ht (make-hash-table 8 eq?))) # TODO: YUCK, NEED A COMBINATOR
       (=> (ht key) val)
@@ -28,6 +33,15 @@
   (= (aboaue-registry-ref)                 aboaue-registry)
   (= (aboaue-registry-pubsub-ref)        ((aboaue-registry-ref)        'pubsub))
   (= (aboaue-registry-pubsub-events-ref) ((aboaue-registry-pubsub-ref) 'events))
+  (= (aboaue-registry-publish-event channel args)
+    (call-procs-rec ((aboaue-registry-pubsub-events-ref) channel) args)
+    ())
+  (= (aboaue-registry-subscribe-event channel proc)
+    (@ ((procs ((aboaue-registry-pubsub-events-ref) channel)))
+      (? (list? procs)
+           (=> ((aboaue-registry-pubsub-events-ref) channel)
+              (append procs (list proc)))))
+    ())
 
   (= (hook-player-input world device action durations func)
     ## TODO: @@@ ASSUMING 'pointing DEVICE
