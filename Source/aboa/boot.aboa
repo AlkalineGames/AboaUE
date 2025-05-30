@@ -7,15 +7,20 @@
 # AboaUE boot program
 
 (begin
-  (= is-tr-boot-to-log   $f)
-  (= is-tr-boot-to-print $f)
-  (= is-tr-boot (or is-tr-boot-to-log is-tr-boot-to-print))
+  (= (tr to-log to-print source a)
+        (? (or to-log to-print) (@ ((s (format $f "## ~A: ~A" source a)))
+          (? to-log   (ue-log s))
+          (? to-print (ue-print-string-primary s)))))
+  (= (tr-form-vals to-log to-print source form . vals)
+        (? (or to-log to-print) (tr to-log to-print source (apply format $f form vals))))
+
+  (= tr-boot-to-log   $f)
+  (= tr-boot-to-print $f)
+  (= tr-boot-source   "boot.aboa")
   (= (tr-boot a)
-        (? is-tr-boot (@ ((s (format $f "## boot.aboa: (~A" a)))
-          (? is-tr-boot-to-log   (ue-log s))
-          (? is-tr-boot-to-print (ue-print-string-primary s)))))
+    (tr tr-boot-to-log tr-boot-to-print tr-boot-source a))
   (= (tr-boot-form-vals form . vals)
-        (? is-tr-boot (tr-boot (apply format $f form vals))))
+    (tr-form-vals tr-boot-to-log tr-boot-to-print tr-boot-source form vals))
 
   (tr-boot "BEGIN booting AboaUE..")
 
@@ -47,8 +52,8 @@
     ## TODO: @@@ ASSUMING 'pointing DEVICE
     (= (tr-boot-event event finger location)
       ## TODO: @@@ tr-boot-format-values apply will expand location and choke
-      ##(tr-boot-form-vals "(~A finger (~A at ={(~A}" event finger location))
-      (? is-tr-boot (tr-boot (format $f "(~A finger (~A at (~A" event finger location))))
+      ##(tr-boot-form-vals "~A finger ~A at ~A" event finger location))
+      (tr-boot (format $f "~A finger ~A at ~A" event finger location)))
     (ue-bind-input-touch world 'pressed
       (> (finger location) (tr-boot-event "pressed" finger location)))
     (ue-bind-input-touch world 'released
