@@ -1,4 +1,4 @@
-// Copyright © 2025 Alkaline Games, LLC.
+// Copyright © 2025 Christopher Augustus
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -40,7 +40,7 @@ void UAboaActorComponent::InitializeComponent() {
     pluginSourcePath(AboaDirPlugin, AboaDirSource, AboaFilename),
     AboaNamespace + "-init",
     makeAboaUeDataDict({
-      {"uobject", makeAboaUeDataUobject(*this)}}),
+      {"uobject", makeAboaUeDataUobjectRef(*this)}}),
     true); // forceReload TODO: ### UNTIL AUTO-RELOAD IS IMPLEMENTED
   //PrintStringToScreen(dumpAboaUeDataDict(results));
     // ^ TODO: ### TRACING
@@ -54,7 +54,7 @@ void UAboaActorComponent::BeginPlay() {
   auto results = callLoadedAboaUeCode(
     AboaNamespace + "-begin-play",
     makeAboaUeDataDict({
-      {"uobject", makeAboaUeDataUobject(*this)}}));
+      {"uobject", makeAboaUeDataUobjectRef(*this)}}));
 }
 
 // virtual
@@ -65,7 +65,7 @@ void UAboaActorComponent::EndPlay(
   auto results = callLoadedAboaUeCode(
     AboaNamespace + "-end-play",
     makeAboaUeDataDict({
-      {"uobject", makeAboaUeDataUobject(*this)}}));
+      {"uobject", makeAboaUeDataUobjectRef(*this)}}));
 }
 
 // virtual
@@ -74,7 +74,7 @@ void UAboaActorComponent::UninitializeComponent() {
   auto results = callLoadedAboaUeCode(
     AboaNamespace + "-uninit",
     makeAboaUeDataDict({
-      {"uobject", makeAboaUeDataUobject(*this)}}));
+      {"uobject", makeAboaUeDataUobjectRef(*this)}}));
 }
 
 // virtual
@@ -87,6 +87,6 @@ void UAboaActorComponent::TickComponent(
   auto results = callLoadedAboaUeCode(
     AboaNamespace + "-tick",
     makeAboaUeDataDict({
-      {"uobject", makeAboaUeDataUobject(*this)},
+      {"uobject", makeAboaUeDataUobjectRef(*this)},
       {"delta",   makeAboaUeDataFloat(DeltaTime)}}));
 }

@@ -1,4 +1,4 @@
-// Copyright © 2023 - 2025 Alkaline Games, LLC.
+// Copyright © 2023 - 2025 Christopher Augustus
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -1172,10 +1172,17 @@ auto callAboaUeCode(
         // TODO: ### IMPLEMENT TYPE
         break;
       }
-      case AboaUeDataType::Uobject : {
+      case AboaUeDataType::UobjectPtr : {
+        auto op = ueObjectPtrFromAny(ref.any);
+        // TODO: ### value can be null, but also null if incorrect type
+        s7value = s7_make_c_pointer(
+          mutant.s7session, const_cast<UObject *>(op));
+        break;
+      }
+      case AboaUeDataType::UobjectRef : {
         auto op = ueObjectPtrFromAny(ref.any);
         if (!op) UE_LOG(LogAlkScheme, Error,
-          TEXT("runAboaUeCode(...) arg type is not a Uobject"))
+          TEXT("runAboaUeCode(...) arg type is not a UobjectRef"))
         else
           s7value = s7_make_c_pointer(
             mutant.s7session, const_cast<UObject *>(op));
@@ -1250,8 +1257,12 @@ auto makeAboaUeDataVector(FVector const & data) -> AboaUeDataRef {
   return {&data, AboaUeDataType::Vector};
 }
 
-auto makeAboaUeDataUobject(UObject const & data) -> AboaUeDataRef {
-  return {&data, AboaUeDataType::Uobject};
+auto makeAboaUeDataUobjectPtr(UObject const * data) -> AboaUeDataRef {
+  return {data, AboaUeDataType::UobjectPtr};
+}
+
+auto makeAboaUeDataUobjectRef(UObject const & data) -> AboaUeDataRef {
+  return {&data, AboaUeDataType::UobjectRef};
 }
 
 auto makeAboaUeDataVectorArray(TArray<FVector> const & data) -> AboaUeDataRef {

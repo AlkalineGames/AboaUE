@@ -1,4 +1,4 @@
-// Copyright © 2023 - 2025 Alkaline Games, LLC.
+// Copyright © 2023 - 2025 Christopher Augustus
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -26,7 +26,7 @@ struct AboaUeCode {
 };
 
 enum struct AboaUeDataType {
-  Nothing, Bool, Float, String, Uobject, Vector, VectorArray
+  Nothing, Bool, Float, String, UobjectPtr, UobjectRef, Vector, VectorArray
 };
 
 struct AboaUeDataRef {
@@ -84,7 +84,10 @@ auto ABOAUEM_API
 makeAboaUeDataString(FString const &) -> AboaUeDataRef;
 
 auto ABOAUEM_API
-makeAboaUeDataUobject(UObject const &) -> AboaUeDataRef;
+makeAboaUeDataUobjectPtr(UObject const *) -> AboaUeDataRef;
+
+auto ABOAUEM_API
+makeAboaUeDataUobjectRef(UObject const &) -> AboaUeDataRef;
 
 auto ABOAUEM_API
 makeAboaUeDataVector(FVector const &) -> AboaUeDataRef;
