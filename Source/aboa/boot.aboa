@@ -20,7 +20,7 @@
   (= (tr-boot a)
     (tr tr-boot-to-log tr-boot-to-print tr-boot-source a))
   (= (tr-boot-form-vals form . vals)
-    (tr-form-vals tr-boot-to-log tr-boot-to-print tr-boot-source form vals))
+    (apply tr-form-vals tr-boot-to-log tr-boot-to-print tr-boot-source form vals))
 
   (tr-boot "BEGIN booting AboaUE..")
 
