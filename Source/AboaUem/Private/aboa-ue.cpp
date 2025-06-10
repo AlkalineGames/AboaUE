@@ -964,6 +964,17 @@ ue_world_current_destroy_actor(s7_scheme * s7, s7_pointer args) -> s7_pointer {
     ? s7_t(s7) : s7_f(s7);
 }
 
+static auto const name_ue_world_current_get_game_viewport
+                    = "ue-world-current-get-game-viewport";
+static auto            ue_world_current_get_game_viewport(
+  s7_scheme * s7, s7_pointer args
+) -> s7_pointer {
+  auto const world = CurrentPlayWorld();
+  if (!world)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  return s7_make_c_pointer(s7, world->GetGameViewport());
+}
+
 static auto function_help_string(
   char const * const name,
   char const * const args
@@ -1107,6 +1118,12 @@ auto bootAboaUe() -> AboaUeMutant {
          ue_world_current_destroy_actor,
     1, 0, false, function_help_string(
     name_ue_world_current_destroy_actor,
+      " actor").c_str());
+  s7_define_function(s7session,
+    name_ue_world_current_get_game_viewport,
+         ue_world_current_get_game_viewport,
+    1, 0, false, function_help_string(
+    name_ue_world_current_get_game_viewport,
       " actor").c_str());
 
   FString const scmPath = PluginSubpath(
