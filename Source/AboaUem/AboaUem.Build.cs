@@ -13,7 +13,8 @@ public class AboaUem : ModuleRules {
     PrivateDependencyModuleNames.AddRange(new string[] {
       "Core",
       "CoreUObject",
-      "Engine"
+      "Engine",
+      "UMG"
     });
     RuntimeDependencies.Add(
       PluginDirectory + "/Source/aboa/boot.aboa");

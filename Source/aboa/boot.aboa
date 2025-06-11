@@ -65,6 +65,12 @@
     ## TODO: ### IMPLEMENT
     (tr-boot-form-vals "(open-aboa-editor (~A)" screen-pos))
 
+  (ue-hook-on-game-viewport-subsystem-widget-added
+    (> (widget)
+      (varlet (rootlet) 'aboaue-viewport-widget widget)
+      (tr-boot-form-vals "aboaue-viewport-widget == ~A" aboaue-viewport-widget)
+      ()))
+
   (ue-hook-on-world-begin-play
     (> (world)
       (tr-boot "lambda from (ue-hook-on-world-initialized-actors)")

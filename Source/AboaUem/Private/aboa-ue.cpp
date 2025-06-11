@@ -11,6 +11,7 @@
 
 #include "aboa-s7.h"
 
+#include "Blueprint/GameViewportSubsystem.h"
 #include "Components/ActorComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/PrimitiveComponent.h"
@@ -744,6 +745,28 @@ ue_hook_on_world_added(s7_scheme * s7, s7_pointer args) -> s7_pointer {
 }
 #endif
 
+static auto const name_ue_hook_on_game_viewport_subsystem_widget_added
+                    = "ue-hook-on-game-viewport-subsystem-widget-added";
+static auto            ue_hook_on_game_viewport_subsystem_widget_added(
+  s7_scheme * s7, s7_pointer args
+) -> s7_pointer {
+  auto const arghandler = scheme_arg_procedure_or_error(
+    s7, s7_car(args), 1, "handler");
+  if (arghandler.index() == 1)
+    return std::get<1>(arghandler).pointer;
+  auto const handler = std::get<0>(arghandler).pointer;
+  s7_gc_protect(s7, handler); // TODO: @@@ PROTECTED INDEFINITELY
+  auto const ugvs = UGameViewportSubsystem::Get();
+  if (!ugvs)
+    return s7_f(s7);
+  ugvs->OnWidgetAdded.AddLambda(
+    [s7, handler](UWidget* uwidget, ULocalPlayer* ulocalplayer) {
+      s7_apply_function(s7, handler,
+        s7_cons(s7, s7_make_c_pointer(s7, uwidget), s7_nil(s7)));
+    });
+  return s7_t(s7);
+}
+
 static auto const name_ue_hook_on_world_begin_play = "ue-hook-on-world-begin-play";
 static auto
 ue_hook_on_world_begin_play(s7_scheme * s7, s7_pointer args) -> s7_pointer {
@@ -1066,6 +1089,13 @@ auto bootAboaUe() -> AboaUeMutant {
     name_ue_bind_input_touch, ue_bind_input_touch, 3, 0, false,
     function_help_string(name_ue_bind_input_touch, " world event handler").c_str());
   s7_define_function(s7session,
+    name_ue_hook_on_game_viewport_subsystem_widget_added,
+         ue_hook_on_game_viewport_subsystem_widget_added,
+    1, 0, false,
+    function_help_string(
+    name_ue_hook_on_game_viewport_subsystem_widget_added,
+      " handler").c_str());
+  s7_define_function(s7session,
     name_ue_hook_on_world_begin_play, ue_hook_on_world_begin_play, 1, 0, false,
     function_help_string(name_ue_hook_on_world_begin_play, " handler").c_str());
   s7_define_function(s7session,
@@ -1122,9 +1152,9 @@ auto bootAboaUe() -> AboaUeMutant {
   s7_define_function(s7session,
     name_ue_world_current_get_game_viewport,
          ue_world_current_get_game_viewport,
-    1, 0, false, function_help_string(
+    0, 0, false, function_help_string(
     name_ue_world_current_get_game_viewport,
-      " actor").c_str());
+      "").c_str());
 
   FString const scmPath = PluginSubpath(
     ANSI_TO_TCHAR("AboaUE"),
