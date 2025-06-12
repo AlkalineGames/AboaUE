@@ -25,7 +25,9 @@
   (tr-boot "BEGIN booting AboaUE..")
 
   (= (call-procs-rec procs args)
+    ##(tr-boot-form-vals "(call-procs ~A)" args)
     (? (pair? procs) (begin
+          ##(tr-boot-form-vals "procs == ~A" (car procs))
           ((car procs) args)
           (call-procs-rec (cdr procs) args))))
 
@@ -39,9 +41,12 @@
   (= (aboaue-registry-pubsub-ref)        ((aboaue-registry-ref)        'pubsub))
   (= (aboaue-registry-pubsub-events-ref) ((aboaue-registry-pubsub-ref) 'events))
   (= (aboaue-registry-publish-event channel args)
+    ##(tr-boot-form-vals "(aboaue-registry-publish-event ~A ~A) procs == ~A"
+    ##   channel args ((aboaue-registry-pubsub-events-ref) channel))
     (call-procs-rec ((aboaue-registry-pubsub-events-ref) channel) args)
     ())
   (= (aboaue-registry-subscribe-event channel proc)
+    ##(tr-boot-form-vals "(aboaue-registry-subscribe-event ~A ~A)" channel proc)
     (@ ((procs ((aboaue-registry-pubsub-events-ref) channel)))
       (? (list? procs)
            (=> ((aboaue-registry-pubsub-events-ref) channel)
@@ -53,7 +58,8 @@
     (= (tr-boot-event event finger location)
       ## TODO: @@@ tr-boot-format-values apply will expand location and choke
       ##(tr-boot-form-vals "~A finger ~A at ~A" event finger location))
-      (tr-boot (format $f "~A finger ~A at ~A" event finger location)))
+      ##(tr-boot (format $f "~A finger ~A at ~A" event finger location))
+      ())
     (ue-bind-input-touch world 'pressed
       (> (finger location) (tr-boot-event "pressed" finger location)))
     (ue-bind-input-touch world 'released
@@ -68,12 +74,12 @@
   (ue-hook-on-game-viewport-subsystem-widget-added
     (> (widget)
       (varlet (rootlet) 'aboaue-viewport-widget widget)
-      (tr-boot-form-vals "aboaue-viewport-widget == ~A" aboaue-viewport-widget)
+      ##(tr-boot-form-vals "aboaue-viewport-widget == ~A" aboaue-viewport-widget)
       ()))
 
   (ue-hook-on-world-begin-play
     (> (world)
-      (tr-boot "lambda from (ue-hook-on-world-initialized-actors)")
+      ##(tr-boot "lambda from (ue-hook-on-world-begin-play)")
       (ue-print-string world "AboaUE is active")
       (hook-player-input world 'pointing 'press '(200 0 200 0)
         (> (screen-pos) (open-scheme-editor screen-pos)))))
