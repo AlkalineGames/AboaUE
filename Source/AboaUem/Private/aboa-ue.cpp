@@ -14,6 +14,7 @@
 #include "Blueprint/GameViewportSubsystem.h"
 #include "Components/ActorComponent.h"
 #include "Components/InputComponent.h"
+#include "Components/PanelWidget.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -836,6 +837,28 @@ ue_material_instance_dynamic_set_scalar_parameter_value(
   return s7_t(s7);
 }
 
+static auto const name_ue_panel_widget_get_child_at
+                    = "ue-panel-widget-get-child-at";
+static auto            ue_panel_widget_get_child_at(
+  s7_scheme * s7, s7_pointer args
+) -> s7_pointer {
+  auto const argpan = scheme_arg_typed_or_error<UPanelWidget>(
+    s7, s7_car(args), 1, "panel");
+  if (argpan.index() == 1)
+    return std::get<1>(argpan).pointer;
+  auto const panel = std::get<0>(argpan);
+  if (!panel || !panel->CanHaveMultipleChildren())
+    return s7_f(s7); // ### TODO: INDICATE ERROR
+  auto const argindex = scheme_arg_integer_or_error(
+    s7, s7_cadr(args), 2, "index");
+  if (argindex.index() == 1)
+    return std::get<1>(argindex).pointer;
+  auto const index = std::get<0>(argindex);
+  if (index >= panel->GetChildrenCount())
+    return s7_f(s7); // ### TODO: INDICATE ERROR
+  return s7_make_c_pointer(s7, panel->GetChildAt(index));
+}
+
 static auto const name_ue_primitive_component_get_material
   = "ue-primitive-component-get-material";
 static auto
@@ -1107,6 +1130,12 @@ auto bootAboaUe() -> AboaUeMutant {
     3, 0, false, function_help_string(
     name_ue_material_instance_dynamic_set_scalar_parameter_value,
       " instance name value").c_str());
+  s7_define_function(s7session,
+    name_ue_panel_widget_get_child_at,
+         ue_panel_widget_get_child_at,
+    2, 0, false, function_help_string(
+    name_ue_panel_widget_get_child_at,
+      " panel index").c_str());
   s7_define_function(s7session,
     name_ue_primitive_component_get_material,
          ue_primitive_component_get_material,
