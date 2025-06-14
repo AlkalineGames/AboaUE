@@ -28,6 +28,11 @@ auto ueFloatPtrFromAny(
   return ptrFromAny<float>(a);
 }
 
+auto ueMapNameUptrFromAny(
+    std::any const & a) -> TMap<FName,TObjectPtr<UObject>> const * {
+  return ptrFromAny<TMap<FName,TObjectPtr<UObject>>>(a);
+}
+
 auto ueStringPtrFromAny(
     std::any const & a) -> FString const * {
   return ptrFromAny<FString>(a);

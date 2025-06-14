@@ -10,6 +10,7 @@
 
 auto ueFloatPtrFromAny(       std::any const &) -> float           const *;
 auto ueStringPtrFromAny(      std::any const &) -> FString         const *;
+auto ueMapNameUptrFromAny(    std::any const &) -> TMap<FName,TObjectPtr<UObject>> const *;
 auto ueObjectPtrFromAny(      std::any const &) -> UObject         const *;
 auto ueVectorPtrFromAny(      std::any const &) -> FVector         const *;
 auto ueVectorArrayPtrFromAny( std::any const &) -> TArray<FVector> const *;

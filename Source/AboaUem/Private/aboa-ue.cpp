@@ -227,6 +227,20 @@ scheme_arg_typed_mut_or_error(
 }
 
 static auto
+s7_hash_table_from_ue_map_name_uptr(
+  s7_scheme *                     const   s7,
+  TMap<FName,TObjectPtr<UObject>> const & map
+) -> s7_pointer {
+  auto s7ht = s7_make_hash_table(s7, map.Num());
+  for (auto & entry : map) {
+    s7_hash_table_set(  s7, s7ht,
+      s7_make_string(   s7, TCHAR_TO_ANSI(*entry.Key.ToString())),
+      s7_make_c_pointer(s7, entry.Value.Get()));
+  }
+  return s7ht;
+}
+
+static auto
 scheme_ue_vector(
   s7_scheme * const s7,
   FVector     const & vec
@@ -1308,6 +1322,14 @@ auto callAboaUeCode(
           s7value = s7_make_real(mutant.s7session, *fp);
         break;
       }
+      case AboaUeDataType::MapNameUptr : {
+        auto map = ueMapNameUptrFromAny(ref.any);
+        if (!map) UE_LOG(LogAlkScheme, Error,
+          TEXT("runAboaUeCode(...) arg type is not MapNameUptr"));
+        s7value = s7_hash_table_from_ue_map_name_uptr(
+          mutant.s7session, map ? *map : TMap<FName,TObjectPtr<UObject>>());
+        break;
+      }
       case AboaUeDataType::String : {
         // TODO: ### IMPLEMENT TYPE
         break;
@@ -1387,6 +1409,12 @@ auto makeAboaUeDataDict(
 
 auto makeAboaUeDataFloat(float const & data) -> AboaUeDataRef {
   return {&data, AboaUeDataType::Float};
+}
+
+auto makeAboaUeDataMapNameUptr(
+    TMap<FName,TObjectPtr<UObject>> const & data
+) -> AboaUeDataRef {
+  return {&data, AboaUeDataType::MapNameUptr};
 }
 
 auto makeAboaUeDataString(FString const & data) -> AboaUeDataRef {
@@ -1483,7 +1511,7 @@ auto stringFromAboaUeDataDict(
 
 auto vectorArrayFromAboaUeDataDict(
   AboaUeDataDict const & dict,
-  FString             const & key
+  FString        const & key
 ) -> TArray<FVector> {
   auto refOrNull = schemeUeDataRefInDict(
     "vectorArrayFromAboaUeDataDict", dict, key,

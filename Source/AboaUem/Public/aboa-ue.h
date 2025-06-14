@@ -26,7 +26,8 @@ struct AboaUeCode {
 };
 
 enum struct AboaUeDataType {
-  Nothing, Bool, Float, String, UobjectPtr, UobjectRef, Vector, VectorArray
+  Nothing, Bool, Float, MapNameUptr, String,
+  UobjectPtr, UobjectRef, Vector, VectorArray
 };
 
 struct AboaUeDataRef {
@@ -79,6 +80,9 @@ makeAboaUeDataDict(
 
 auto ABOAUEM_API
 makeAboaUeDataFloat(float const &) -> AboaUeDataRef;
+
+auto ABOAUEM_API
+makeAboaUeDataMapNameUptr(TMap<FName,TObjectPtr<UObject>> const &) -> AboaUeDataRef;
 
 auto ABOAUEM_API
 makeAboaUeDataString(FString const &) -> AboaUeDataRef;
