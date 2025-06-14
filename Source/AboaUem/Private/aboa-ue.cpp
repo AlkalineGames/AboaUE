@@ -12,6 +12,7 @@
 #include "aboa-s7.h"
 
 #include "Blueprint/GameViewportSubsystem.h"
+#include "Blueprint/UserWidget.h"
 #include "Components/ActorComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/PanelWidget.h"
@@ -991,6 +992,21 @@ static auto            ue_uobject_get_display_name(
     *UKismetSystemLibrary::GetDisplayName(uobject)));
 }
 
+static auto const name_ue_user_widget_get_root_widget
+                    = "ue-user-widget-get-root-widget";
+static auto            ue_user_widget_get_root_widget(
+  s7_scheme * s7, s7_pointer args
+) -> s7_pointer {
+  auto const argwid = scheme_arg_typed_or_error<UUserWidget>(
+    s7, s7_car(args), 1, "widget");
+  if (argwid.index() == 1)
+    return std::get<1>(argwid).pointer;
+  auto const widget = std::get<0>(argwid);
+  return widget
+    ? s7_make_c_pointer(s7, widget->GetRootWidget())
+    : s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+}
+
 static auto const name_ue_world_current_destroy_actor
                     = "ue-world-current-destroy-actor";
 static auto
@@ -1111,6 +1127,12 @@ auto bootAboaUe() -> AboaUeMutant {
   s7_define_function(s7session,
     name_ue_bind_input_touch, ue_bind_input_touch, 3, 0, false,
     function_help_string(name_ue_bind_input_touch, " world event handler").c_str());
+  s7_define_function(s7session,
+    name_ue_user_widget_get_root_widget,
+         ue_user_widget_get_root_widget,
+    1, 0, false, function_help_string(
+    name_ue_user_widget_get_root_widget,
+      " widget").c_str());
   s7_define_function(s7session,
     name_ue_hook_on_game_viewport_subsystem_widget_added,
          ue_hook_on_game_viewport_subsystem_widget_added,
