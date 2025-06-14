@@ -977,6 +977,20 @@ ue_scene_component_set_visibility(s7_scheme * s7, s7_pointer args) -> s7_pointer
   return s7_t(s7);
 }
 
+static auto const name_ue_uobject_get_class_name
+                    = "ue-uobject-get-class-name";
+static auto            ue_uobject_get_class_name(
+  s7_scheme * s7, s7_pointer args) -> s7_pointer {
+  auto const arguobj = scheme_arg_typed_or_error<UObject>(
+    s7, s7_car(args), 1, "uobject");
+  if (arguobj.index() == 1)
+    return std::get<1>(arguobj).pointer;
+  auto const uobject = std::get<0>(arguobj);
+  return uobject
+    ? s7_make_string(s7, TCHAR_TO_ANSI(*uobject->GetClass()->GetName()))
+    : s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+}
+
 static auto const name_ue_uobject_get_display_name
                     = "ue-uobject-get-display-name";
 static auto            ue_uobject_get_display_name(
@@ -1188,6 +1202,12 @@ auto bootAboaUe() -> AboaUeMutant {
     2, 0, false, function_help_string(
     name_ue_scene_component_set_visibility,
     " component visible").c_str());
+  s7_define_function(s7session,
+    name_ue_uobject_get_class_name,
+         ue_uobject_get_class_name,
+    1, 0, false, function_help_string(
+    name_ue_uobject_get_class_name,
+      " uobject").c_str());
   s7_define_function(s7session,
     name_ue_uobject_get_display_name,
          ue_uobject_get_display_name,
