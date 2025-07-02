@@ -540,6 +540,29 @@ ue_actor_set_hidden(s7_scheme * s7, s7_pointer args) -> s7_pointer {
   return s7_t(s7);
 }
 
+static auto const name_ue_actor_is_attached_to
+                    = "ue-actor-is-attached-to";
+static auto            ue_actor_is_attached_to(
+  s7_scheme * s7, s7_pointer args
+) -> s7_pointer {
+  auto const argactor = scheme_arg_typed_or_error<AActor>(
+    s7, s7_car(args), 1, "actor");
+  if (argactor.index() == 1)
+    return std::get<1>(argactor).pointer;
+  auto const actor = std::get<0>(argactor);
+  if (!actor)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const argother = scheme_arg_typed_or_error<AActor>(
+    s7, s7_cadr(args), 2, "other");
+  if (argother.index() == 1)
+    return std::get<1>(argother).pointer;
+  auto const other = std::get<0>(argother);
+  if (!other)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  return actor->IsAttachedTo(std::get<0>(argother))
+    ? s7_t(s7) : s7_f(s7);
+}
+
 static auto const name_ue_actor_component_get_owner = "ue-actor-component-get-owner";
 static auto
 ue_actor_component_get_owner(s7_scheme * s7, s7_pointer args) -> s7_pointer {
@@ -1165,6 +1188,12 @@ auto bootAboaUe() -> AboaUeMutant {
     2, 0, false, function_help_string(
     name_ue_actor_set_hidden,
       " actor hidden").c_str());
+  s7_define_function(s7session,
+    name_ue_actor_is_attached_to,
+         ue_actor_is_attached_to,
+    2, 0, false, function_help_string(
+    name_ue_actor_is_attached_to,
+      " actor other").c_str());
   s7_define_function(s7session,
     name_ue_actor_component_get_owner,
          ue_actor_component_get_owner,
