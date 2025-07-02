@@ -14,6 +14,7 @@
 #include "Blueprint/GameViewportSubsystem.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/ActorComponent.h"
+#include "Components/Image.h"
 #include "Components/InputComponent.h"
 #include "Components/PanelWidget.h"
 #include "Components/PrimitiveComponent.h"
@@ -852,16 +853,43 @@ ue_material_instance_dynamic_set_scalar_parameter_value(
   return s7_t(s7);
 }
 
+static auto const name_umg_image_set_brush_from_texture
+                    = "umg-image-set-brush-from-texture";
+static auto            umg_image_set_brush_from_texture(
+  s7_scheme * s7, s7_pointer args
+) -> s7_pointer {
+  auto const argimage = scheme_arg_typed_mut_or_error<UImage>(
+    s7, s7_car(args), 1, "image");
+  if (argimage.index() == 1)
+    return std::get<1>(argimage).pointer;
+  auto const image = std::get<0>(argimage);
+  if (!image)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const argtexture = scheme_arg_typed_mut_or_error<UTexture2D>(
+    s7, s7_cadr(args), 2, "texture");
+  if (argtexture.index() == 1)
+    return std::get<1>(argtexture).pointer;
+  auto const texture = std::get<0>(argtexture);
+  if (!texture)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const argmatch = scheme_arg_boolean_or_error(
+    s7, s7_caddr(args), 3, "match");
+  if (argmatch.index() == 1)
+    return std::get<1>(argmatch).pointer;
+  image->SetBrushFromTexture(texture, std::get<0>(argmatch));
+  return s7_t(s7);
+}
+
 static auto const name_umg_panel_widget_get_child_at
                     = "umg-panel-widget-get-child-at";
 static auto            umg_panel_widget_get_child_at(
   s7_scheme * s7, s7_pointer args
 ) -> s7_pointer {
-  auto const argpan = scheme_arg_typed_or_error<UPanelWidget>(
+  auto const argpanel = scheme_arg_typed_or_error<UPanelWidget>(
     s7, s7_car(args), 1, "panel");
-  if (argpan.index() == 1)
-    return std::get<1>(argpan).pointer;
-  auto const panel = std::get<0>(argpan);
+  if (argpanel.index() == 1)
+    return std::get<1>(argpanel).pointer;
+  auto const panel = std::get<0>(argpanel);
   if (!panel || !panel->CanHaveMultipleChildren())
     return s7_f(s7); // ### TODO: INDICATE ERROR
   auto const argindex = scheme_arg_integer_or_error(
@@ -1180,6 +1208,12 @@ auto bootAboaUe() -> AboaUeMutant {
     3, 0, false, function_help_string(
     name_ue_material_instance_dynamic_set_scalar_parameter_value,
       " instance name value").c_str());
+  s7_define_function(s7session,
+    name_umg_image_set_brush_from_texture,
+         umg_image_set_brush_from_texture,
+    3, 0, false, function_help_string(
+    name_umg_image_set_brush_from_texture,
+      " image texture match").c_str());
   s7_define_function(s7session,
     name_umg_panel_widget_get_child_at,
          umg_panel_widget_get_child_at,
