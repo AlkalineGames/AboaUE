@@ -852,9 +852,9 @@ ue_material_instance_dynamic_set_scalar_parameter_value(
   return s7_t(s7);
 }
 
-static auto const name_ue_panel_widget_get_child_at
-                    = "ue-panel-widget-get-child-at";
-static auto            ue_panel_widget_get_child_at(
+static auto const name_umg_panel_widget_get_child_at
+                    = "umg-panel-widget-get-child-at";
+static auto            umg_panel_widget_get_child_at(
   s7_scheme * s7, s7_pointer args
 ) -> s7_pointer {
   auto const argpan = scheme_arg_typed_or_error<UPanelWidget>(
@@ -1020,9 +1020,9 @@ static auto            ue_uobject_get_display_name(
     *UKismetSystemLibrary::GetDisplayName(uobject)));
 }
 
-static auto const name_ue_user_widget_get_root_widget
-                    = "ue-user-widget-get-root-widget";
-static auto            ue_user_widget_get_root_widget(
+static auto const name_umg_user_widget_get_root_widget
+                    = "umg-user-widget-get-root-widget";
+static auto            umg_user_widget_get_root_widget(
   s7_scheme * s7, s7_pointer args
 ) -> s7_pointer {
   auto const argwid = scheme_arg_typed_or_error<UUserWidget>(
@@ -1156,10 +1156,10 @@ auto bootAboaUe() -> AboaUeMutant {
     name_ue_bind_input_touch, ue_bind_input_touch, 3, 0, false,
     function_help_string(name_ue_bind_input_touch, " world event handler").c_str());
   s7_define_function(s7session,
-    name_ue_user_widget_get_root_widget,
-         ue_user_widget_get_root_widget,
+    name_umg_user_widget_get_root_widget,
+         umg_user_widget_get_root_widget,
     1, 0, false, function_help_string(
-    name_ue_user_widget_get_root_widget,
+    name_umg_user_widget_get_root_widget,
       " widget").c_str());
   s7_define_function(s7session,
     name_ue_hook_on_game_viewport_subsystem_widget_added,
@@ -1181,10 +1181,10 @@ auto bootAboaUe() -> AboaUeMutant {
     name_ue_material_instance_dynamic_set_scalar_parameter_value,
       " instance name value").c_str());
   s7_define_function(s7session,
-    name_ue_panel_widget_get_child_at,
-         ue_panel_widget_get_child_at,
+    name_umg_panel_widget_get_child_at,
+         umg_panel_widget_get_child_at,
     2, 0, false, function_help_string(
-    name_ue_panel_widget_get_child_at,
+    name_umg_panel_widget_get_child_at,
       " panel index").c_str());
   s7_define_function(s7session,
     name_ue_primitive_component_get_material,
