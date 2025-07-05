@@ -737,6 +737,20 @@ ue_bind_input_touch(s7_scheme * s7, s7_pointer args) -> s7_pointer {
   return s7_t(s7);
 }
 
+static auto const name_ue_find_uclass_by_name
+                    = "ue-find-uclass-by-name";
+static auto            ue_find_uclass_by_name(
+  s7_scheme * s7, s7_pointer args
+) -> s7_pointer {
+  auto const argname = scheme_arg_string_or_error(
+    s7, s7_car(args), 1, "name");
+  if (argname.index() == 1)
+    return std::get<1>(argname).pointer;
+  return s7_make_c_pointer(s7,
+    FindObject<UClass>(ANY_PACKAGE,
+      ANSI_TO_TCHAR(std::get<0>(argname))));
+}
+
 #if 0
 static auto
 ue_apply_procedure_on_world(
@@ -1212,6 +1226,12 @@ auto bootAboaUe() -> AboaUeMutant {
   s7_define_function(s7session,
     name_ue_bind_input_touch, ue_bind_input_touch, 3, 0, false,
     function_help_string(name_ue_bind_input_touch, " world event handler").c_str());
+  s7_define_function(s7session,
+    name_ue_find_uclass_by_name,
+         ue_find_uclass_by_name,
+    1, 0, false, function_help_string(
+    name_ue_find_uclass_by_name,
+      " name").c_str());
   s7_define_function(s7session,
     name_umg_user_widget_get_root_widget,
          umg_user_widget_get_root_widget,
