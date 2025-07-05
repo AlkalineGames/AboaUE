@@ -275,6 +275,14 @@ ue_vector_from_s7(
 }
 
 static auto
+ue_rotator_from_s7(
+  s7_pointer const s7pfvec
+) -> FRotator {
+  auto fve = s7_float_vector_elements(s7pfvec);
+  return FRotator(fve[0], fve[1], fve[2]);
+}
+
+static auto
 alloc_ue_vector_from_s7(
   s7_pointer const s7pfvec
 ) -> FVector const & {
@@ -1130,6 +1138,36 @@ static auto            ue_world_current_get_game_viewport(
   return s7_make_c_pointer(s7, world->GetGameViewport());
 }
 
+static auto const name_ue_world_current_spawn_actor
+                    = "ue-world-current-spawn-actor";
+static auto            ue_world_current_spawn_actor(
+  s7_scheme * s7, s7_pointer args
+) -> s7_pointer {
+  auto const world = CurrentPlayWorld();
+  if (!world)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const argclass = scheme_arg_typed_or_error<UClass>(
+    s7, s7_car(args), 1, "class");
+  if (argclass.index() == 1)
+    return std::get<1>(argclass).pointer;
+  auto const uclass = std::get<0>(argclass);
+  if (!uclass)
+    return s7_f(s7); // !!! scheme_arg_typed_or_error already checks for null
+  auto const argloc = scheme_arg_float_vector_or_error(
+    s7, s7_cadr(args), 2, "location");
+  if (argloc.index() == 1)
+    return std::get<1>(argloc).pointer;
+  auto const argrot = scheme_arg_float_vector_or_error(
+    s7, s7_caddr(args), 3, "rotation");
+  if (argrot.index() == 1)
+    return std::get<1>(argrot).pointer;
+  auto const location = ue_vector_from_s7( std::get<0>(argloc).pointer);
+  auto const rotation = ue_rotator_from_s7(std::get<0>(argrot).pointer);
+  return s7_make_c_pointer(s7,
+    const_cast<UWorld*>(world)->SpawnActor(
+      const_cast<UClass*>(uclass), &location, &rotation));
+}
+
 static auto function_help_string(
   char const * const name,
   char const * const args
@@ -1323,6 +1361,12 @@ auto bootAboaUe() -> AboaUeMutant {
     0, 0, false, function_help_string(
     name_ue_world_current_get_game_viewport,
       "").c_str());
+  s7_define_function(s7session,
+    name_ue_world_current_spawn_actor,
+         ue_world_current_spawn_actor,
+    3, 0, false, function_help_string(
+    name_ue_world_current_spawn_actor,
+      " class location rotation").c_str());
 
   FString const scmPath = PluginSubpath(
     ANSI_TO_TCHAR("AboaUE"),
