@@ -947,6 +947,26 @@ static auto            umg_panel_widget_get_child_at(
   return s7_make_c_pointer(s7, panel->GetChildAt(index));
 }
 
+static auto const name_ue_primitive_component_add_impulse
+                    = "ue-primitive-component-add-impulse";
+static auto            ue_primitive_component_add_impulse(
+  s7_scheme * s7, s7_pointer args
+) -> s7_pointer {
+  auto const argcomp = scheme_arg_typed_or_error<UPrimitiveComponent>(
+    s7, s7_car(args), 1, "component");
+  if (argcomp.index() == 1) // !!! scheme_arg_typed_or_error already checks for null
+    return std::get<1>(argcomp).pointer;
+  auto const component = std::get<0>(argcomp);
+  auto const argimp = scheme_arg_float_vector_or_error(
+    s7, s7_cadr(args), 2, "impulse");
+  if (argimp.index() == 1)
+    return std::get<1>(argimp).pointer;
+  auto const impulse = std::get<0>(argimp).pointer;
+  const_cast<UPrimitiveComponent*>(component)->AddImpulse(
+    ue_vector_from_s7(impulse));
+  return s7_t(s7);
+}
+
 static auto const name_ue_primitive_component_get_material
   = "ue-primitive-component-get-material";
 static auto
@@ -1307,6 +1327,12 @@ auto bootAboaUe() -> AboaUeMutant {
     2, 0, false, function_help_string(
     name_umg_panel_widget_get_child_at,
       " panel index").c_str());
+  s7_define_function(s7session,
+    name_ue_primitive_component_add_impulse,
+         ue_primitive_component_add_impulse,
+    2, 0, false, function_help_string(
+    name_ue_primitive_component_add_impulse,
+      " component impulse").c_str());
   s7_define_function(s7session,
     name_ue_primitive_component_get_material,
          ue_primitive_component_get_material,
